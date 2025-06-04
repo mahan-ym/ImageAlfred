@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Alfred of Images: An MCP server to handle your image edits."
 authors = ["Mahan-ym, Soodoo"]
 license = "Apache-2.0"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 
 
 dependencies = [
@@ -18,3 +18,46 @@ dependencies = [
 dev = [
     "ruff>=0.11.12",
 ]
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+target-version = "py312"
+line-length = 88
+indent-width = 4
+
+
+[tool.ruff.lint]
+select = [
+    "I",
+    "E",
+#    "F",
+]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+
+[tool.ruff.format]
+# Automatically detect the appropriate line ending.
+line-ending = "auto"

@@ -1,5 +1,6 @@
 import gradio as gr
 
+
 def process_image(input_img):
     pass
 
@@ -10,7 +11,6 @@ demo = gr.Interface(
     outputs=gr.Image(),
     title="Simple Image Processor",
     description="Upload an image and see the processed result.",
-
 )
 
 if __name__ == "__main__":
