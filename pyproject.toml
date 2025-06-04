@@ -1,0 +1,11 @@
+[project]
+name = "ImageAlfred"
+version = "0.1.0"
+description = "Alfred of Images: An MCP server to handle your image edits."
+authors = ["Mahan-ym, Soodoo"]
+license = "Apache-2.0"
+
+dependencies = [
+    "gradio>=5.32.1",
+    "modal>=1.0.2",
+]
