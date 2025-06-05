@@ -72,8 +72,8 @@ def change_color_objects_image(
     results = model.predict(
         images_pil=[image],
         texts_prompt=[prompt],
-        box_threshold=0.3,
-        text_threshold=0.25,
+        # box_threshold=0.3,
+        # text_threshold=0.25,
     )
 
     # Create class_id for each unique label
@@ -119,15 +119,18 @@ def change_color_objects_image(
     hsv_modified = cv2.merge([h, s, v])
     colored_bgr = cv2.cvtColor(hsv_modified, cv2.COLOR_HSV2BGR)
 
-    # === 4. Blend the modified region with the original using soft mask ===
-    output = (
-        colored_bgr.astype(np.float32) * mask_3ch
-        + bgr_image.astype(np.float32) * (1 - mask_3ch)
+    # Convert colored_bgr and original bgr_image to RGB for blending
+    colored_rgb = cv2.cvtColor(colored_bgr, cv2.COLOR_BGR2RGB)
+    original_rgb = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+
+    # Blend in RGB space using soft mask
+    output_rgb = (
+        colored_rgb.astype(np.float32) * mask_3ch
+        + original_rgb.astype(np.float32) * (1 - mask_3ch)
     ).astype(np.uint8)
 
-    # === 5. Convert back to Pillow and save ===
-    colored_rgb = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
-    result_pil = Image.fromarray(colored_rgb)
+    # Convert back to Pillow Image
+    result_pil = Image.fromarray(output_rgb)
 
     return result_pil
 
@@ -235,3 +238,19 @@ def main():
     )
     save_path = f"{output_dir}/colored_{img_name}"
     new_image.save(save_path)
+
+
+if __name__ == "__main__":
+    input_dir = "./src/assets/input"
+    output_dir = "./src/assets/output"
+    img_name = "test_1.jpg"
+    img = Image.open(f"{input_dir}/{img_name}").convert("RGB")
+    with modal.enable_output():
+        with app.run():
+            new_image = change_color_objects_image.remote(
+                img,
+                "shirt.",
+                120,
+            )
+            save_path = f"{output_dir}/colored_{img_name}"
+            new_image.save(save_path)
