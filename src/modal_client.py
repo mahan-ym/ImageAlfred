@@ -30,32 +30,6 @@ image = (
     .pip_install("git+https://github.com/luca-medeiros/lang-segment-anything.git")
 )
 
-
-@app.function(gpu="T4", image=image)
-def validate_cuda():
-    import torch  # type: ignore
-
-    has_cuda = torch.cuda.is_available()
-    import subprocess
-
-    output = subprocess.check_output(["nvidia-smi"], text=True)
-    assert "Driver Version:" in output
-    assert "CUDA Version:" in output
-    return has_cuda, output
-
-
-@app.function(gpu="T4", image=image)
-def langsam_segment(
-    image: Image.Image,
-    prompt: str,
-) -> list:
-    from lang_sam import LangSAM  # type: ignore
-
-    model = LangSAM(sam_type="sam2.1_hiera_large")
-    results = model.predict([image], [prompt])
-    return results
-
-
 @app.function(
     gpu="T4",
     image=image,
