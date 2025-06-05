@@ -116,6 +116,75 @@ def change_image_object_hsv(
     return output_buffer.getvalue()
 
 
+# need to check 
+@app.function(
+    gpu="T4",
+    image=image,
+)
+def change_image_objects_hsv(
+    image_bytes: bytes,
+    objects_config: dict[str, dict[str, float]],
+    default_saturation_scale: float = 1.2,
+) -> bytes:
+    """
+        Changes the hue of multiple objects in an image using masks.
+
+            Parameters:
+                image_bytes (bytes): binary image data
+                objects_config (dict): Dictionary mapping object prompts to their parameters
+                                      Format: {"object prompt": {"hue": value, "saturation_scale": value}}
+                default_saturation_scale (float): Default saturation scale if not specified per object
+
+            Returns:
+                bytes (binary image data of the modified image)
+    """
+    from io import BytesIO
+
+    import cv2
+    from lang_sam import LangSAM  # type: ignore
+    from PIL import Image
+
+    image = Image.open(BytesIO(image_bytes)).convert("RGB")
+
+    model = LangSAM(sam_type="sam2.1_hiera_large")
+    results = model.predict(
+        images_pil=[image],
+        texts_prompt=list(objects_config.keys()),
+        # box_threshold=0.3,
+        # text_threshold=0.25,
+    )
+
+    img_array = np.array(image)
+
+    output_images = []
+
+    for idx, (prompt, config) in enumerate(objects_config.items()):
+        hue = config.get("hue", 0)
+        saturation_scale = config.get("saturation_scale", default_saturation_scale)
+
+        img_hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
+
+        mask = results[idx]["masks"][0]
+        mask_bool = mask.astype(bool)
+
+        img_hsv[mask_bool, 0] = hue
+        img_hsv[mask_bool, 1] = np.minimum(
+            img_hsv[mask_bool, 1] * saturation_scale, 255
+        )
+
+        img_hsv_result = cv2.cvtColor(img_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
+        img_hsv_colored = Image.fromarray(img_hsv_result)
+        output_images.append(np.array(img_hsv_colored))
+
+    # Combine images: Assuming all images are the same size
+    combined_image = np.sum(output_images, axis=0).astype(np.uint8)
+
+    output_image_pil = Image.fromarray(combined_image)
+    output_buffer = BytesIO()
+    output_image_pil.save(output_buffer, format="PNG")
+    return output_buffer.getvalue()
+
+
 @app.function(
     gpu="T4",
     image=image,
@@ -179,6 +248,32 @@ def change_image_object_lab(
     output_buffer = BytesIO()
     img_lab_colored.save(output_buffer, format="PNG")
     return output_buffer.getvalue()
+
+
+# not sure about input and output types, need to check
+@app.function(
+    gpu="T4",
+    image=image,
+)
+def change_image_objects_lab(
+    image_bytes: bytes,
+    objects_config: dict[str, dict[str, int]],
+) -> bytes:
+    """
+    Changes the color of multiple objects in an image using masks.
+
+        Parameters:
+            image_bytes (bytes): binary image data
+            objects_config (dict): Dictionary mapping object prompts to their parameters
+                                  Format: {"object prompt": {"a": value, "b": value}}
+        Returns:
+            bytes (binary image data of the modified image)
+    """
+    from io import BytesIO
+
+    import cv2
+    from lang_sam import LangSAM
+    from PIL import Image
 
 
 # for running with modal CLI
