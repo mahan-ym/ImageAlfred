@@ -1,11 +1,19 @@
 import modal
 
+modal_app_name = "ImageAlfred"
 
-def change_color_objects_hsv(user_input, input_img):
+def change_color_objects_hsv(
+    user_input,
+    input_img,
+):
     """
     Recolor an image based on user input. Use this tool to recolor using HSV color space.
     Args:
-        user_input (list): List of [object:str, hue:int, saturationScale:float].
+        user_input (list): List of
+                [object (str): semantic prompt for the object, e.g., "hair", "shirt"
+                hue (int): 0-179, OpenCV hue range
+                saturation_scale (float): Saturation Scale. 1.0 means no change, <1.0 desaturates, >1.0 saturates]
+
         input_img (bytes): Input image in bytes format.
 
     Returns:
@@ -13,9 +21,10 @@ def change_color_objects_hsv(user_input, input_img):
 
     example:
         user_input = [["hair", 30, 1.2], ["shirt", 60, 1.0]]
-    """
-    langsam_prompt = ". ".join([f"{obj[0]}" for obj in user_input])
-    pass
+
+    """  # noqa: E501
+    test = ". ".join(i[0] for i in user_input)
+    print(f"Recoloring objects: {test}")
 
 
 def change_color_objects_lab(user_input, input_img):
@@ -32,3 +41,9 @@ def change_color_objects_lab(user_input, input_img):
         user_input = [["hair", 128, 128], ["shirt", 100, 150]]
     """
     pass
+
+
+if __name__ == "__main__":
+    change_color_objects_hsv(
+        user_input=[["hair", 30, 1.2], ["shirt", 60, 1.0]], input_img=b""
+    )
