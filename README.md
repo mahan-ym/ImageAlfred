@@ -51,7 +51,7 @@ modal setup
 ### Running the App
 
 ```bash
-python src/app.py
+uv run src/app.py
 ```
 
 This will launch the Gradio interface for ImageAlfred.

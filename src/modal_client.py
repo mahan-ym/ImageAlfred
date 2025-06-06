@@ -5,7 +5,7 @@ import modal
 import numpy as np
 from PIL import Image
 
-app = modal.App("ImageAlfread")
+app = modal.App("ImageAlfred")
 
 cuda_version = "12.4.0"
 flavor = "devel"
@@ -29,6 +29,7 @@ image = (
     )
     .pip_install("git+https://github.com/luca-medeiros/lang-segment-anything.git")
 )
+
 
 @app.function(
     gpu="T4",
@@ -90,7 +91,7 @@ def change_image_object_hsv(
     return output_buffer.getvalue()
 
 
-# need to check 
+# need to check
 @app.function(
     gpu="T4",
     image=image,
@@ -101,16 +102,16 @@ def change_image_objects_hsv(
     default_saturation_scale: float = 1.2,
 ) -> bytes:
     """
-        Changes the hue of multiple objects in an image using masks.
+    Changes the hue of multiple objects in an image using masks.
 
-            Parameters:
-                image_bytes (bytes): binary image data
-                objects_config (dict): Dictionary mapping object prompts to their parameters
-                                      Format: {"object prompt": {"hue": value, "saturation_scale": value}}
-                default_saturation_scale (float): Default saturation scale if not specified per object
+        Parameters:
+            image_bytes (bytes): binary image data
+            objects_config (dict): Dictionary mapping object prompts to their parameters
+                                  Format: {"object prompt": {"hue": value, "saturation_scale": value}}
+            default_saturation_scale (float): Default saturation scale if not specified per object
 
-            Returns:
-                bytes (binary image data of the modified image)
+        Returns:
+            bytes (binary image data of the modified image)
     """
     from io import BytesIO
 
