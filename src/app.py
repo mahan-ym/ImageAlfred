@@ -1,6 +1,6 @@
 import gradio as gr
 
-from recolor_tool import change_color_objects_hsv, change_color_objects_lab
+from tools import change_color_objects_hsv, change_color_objects_lab
 
 
 def privacy_preserve_image(input_prompt, input_img):
