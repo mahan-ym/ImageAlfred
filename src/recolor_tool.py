@@ -1,3 +1,6 @@
+from utils import cast_langsam_prompt
+
+
 def change_color_objects_hsv(
                     user_input,
                     input_img):
@@ -13,7 +16,7 @@ def change_color_objects_hsv(
     example:
         user_input = [["hair", 30, 1.2], ["shirt", 60, 1.0]]
     """
-    langsam_prompt = ". ".join([f"{obj[0]}" for obj in user_input])
+    langsam_prompt = cast_langsam_prompt(user_input)
     pass
 
 
