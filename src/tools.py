@@ -27,21 +27,33 @@ def change_color_objects_hsv(
     user_input,
     input_img,
 ):
-    """
-    Recolor an image based on user input. Use this tool to recolor using HSV color space.
-    Args:
-        user_input (list): List of
-                [object (str): semantic prompt for the object, e.g., "hair", "shirt"
-                hue (int): 0-179, OpenCV hue range
-                saturation_scale (float): Saturation Scale. 1.0 means no change, <1.0 desaturates, >1.0 saturates]
+    """Changes the hue and saturation of specified objects in an image.
+    This function uses LangSAM to segment objects in the image based on provided prompts,
+    and then modifies the hue and saturation of those objects in the HSV color space.
 
-        input_img (bytes): Input image in bytes format.
+    Parameters
+    ----------
+    user_input : list[list[str  |  int  |  float]]
+        list of lists, where each inner list contains:
+        - target object name (str)
+        - hue value (int or float): openCV HSV range: 0-179, where 0 is red, 30 is yellow, 60 is green, 120 is cyan, 179 is blue
+        - saturation scale (float): 1 means no change, <1 reduces saturation, >1 increases saturation
+    input_img : bytes
+        image data in bytes format
 
-    Returns:
-        bytes: Binary image data of the modified image.
+    Returns
+    -------
+    Image.Image
+        PIL Image object of the modified image
 
-    example:
-        user_input = [["hair", 30, 1.2], ["shirt", 60, 1.0]]
+    Example
+    -------
+    >>> user_input = [
+    ...     ["hair", 30, 1.2],
+    ...     ["tshirt", 60, 1.0],
+    ...     ["pants", 90, 0.8],
+    ... ]
+    >>> change_image_objects_hsv(user_input, input_img)
     """  # noqa: E501
     try:
         Image.open(BytesIO(input_img))
@@ -85,17 +97,45 @@ def change_color_objects_hsv(
 
 
 def change_color_objects_lab(user_input, input_img):
-    """
-    Recolor an image based on user input. Use this tool to recolor using LAB color space.
-    Args:
-        user_input (list): List of [object:str, new_a:int, new_b:int].
-        input_img (bytes): Input image in bytes format.
+    """Changes the color of specified objects in an image.
+    This function uses LangSAM to segment objects in the image based on provided prompts,
+    and then modifies the color of those objects in the LAB color space.
 
-    Returns:
-        bytes: Binary image data of the modified image.
+    Define new color in LAB space (OpenCV LAB ranges):
+        - L: 0-255 (lightness)
+        - A: 0-255 (green-red, 128 is neutral)
+        - B: 0-255 (blue-yellow, 128 is neutral)
+        - Color examples:
+        - Green: a=80, b=128
+        - Red: a=180, b=160
+        - Blue: a=128, b=80
+        - Yellow: a=120, b=180
+        - Purple: a=180, b=100
 
-    example:
-        user_input = [["hair", 128, 128], ["shirt", 100, 150]]
+    Parameters
+    ----------
+    user_input : list[list[str  |  int  |  float]]
+        list of lists, where each inner list contains:
+        - target object name (str)
+        - new_a (int): 0-255, green-red channel in LAB color space
+        - new_b (int): 0-255, blue-yellow channel in LAB color space
+    input_img : bytes
+        binary image data
+    
+
+    Returns
+    -------
+    Image.Image
+        PIL Image object containing the modified image
+
+    Example
+    -------
+    >>> user_input = [
+    ...     ["hair", 80, 128],
+    ...     ["shirt", 180, 160],
+    ...     ["pants", 120, 180],
+    ... ]
+    >>> change_image_objects_lab(user_input, input_img)
     """  # noqa: E501
     try:
         Image.open(BytesIO(input_img))
