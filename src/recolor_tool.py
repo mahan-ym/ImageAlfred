@@ -21,10 +21,9 @@ def change_color_objects_hsv(
 
     example:
         user_input = [["hair", 30, 1.2], ["shirt", 60, 1.0]]
-
-    """  # noqa: E501
-    test = ". ".join(i[0] for i in user_input)
-    print(f"Recoloring objects: {test}")
+    """
+    langsam_prompt = ". ".join([f"{obj[0]}" for obj in user_input])
+    pass
 
 
 def change_color_objects_lab(user_input, input_img):
