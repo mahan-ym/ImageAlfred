@@ -58,7 +58,9 @@ image = (
 )
 def lang_sam_segment(
     image_pil: Image.Image,
-    prompt: str,  # type: ignore
+    prompt: str,
+    box_threshold=0.3,
+    text_threshold=0.25,
 ) -> list:
     """Segments an image using LangSAM based on a text prompt.
     This function uses LangSAM to segment objects in the image based on the provided prompt.
@@ -74,6 +76,8 @@ def lang_sam_segment(
     langsam_results = model.predict(
         images_pil=[image_pil],
         texts_prompt=[prompt],
+        box_threshold=box_threshold,
+        text_threshold=text_threshold,
     )
 
     return langsam_results
@@ -314,6 +318,8 @@ def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
     langsam_results = lang_sam_segment.remote(
         image_pil=image_pil,
         prompt=prompt,
+        box_threshold=0.35,
+        text_threshold=0.30,
     )
 
     img_array = np.array(image_pil)
