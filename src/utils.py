@@ -51,3 +51,6 @@ def visualize_masks(original_image, segmentation_results: list, alpha: float = 0
                 results.append(vis_img)
 
     return results
+
+def cast_langsam_prompt(user_input: list) -> str:
+    return ". ".join([f"{obj[0]}" for obj in user_input])
