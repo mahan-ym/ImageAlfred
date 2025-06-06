@@ -1,3 +1,6 @@
+
+![Image Alfred](./src/assets/ImageAlfredIcon.png)
+
 # ImageAlfred
 
 ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline image processing workflows.
@@ -8,6 +11,10 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 - Powered by Gradio for rapid prototyping and UI
 - Scalable and serverless execution with Modal
 - Easily extendable for custom image models and workflows -->
+
+## Maintainers
+[Mahan Yarmohammad (Mahan-ym)](https://www.mahan-ym.com/)
+[Saaed Saadatipour (Soodoo)](https://soodoo.me/)
 
 ## Getting Started
 
