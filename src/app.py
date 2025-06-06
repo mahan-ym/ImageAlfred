@@ -9,7 +9,7 @@ def privacy_preserve_image(input_prompt, input_img):
 
 title = """
 <div style="text-align: center;">
-    <img src="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/ImageAlfredIcon.png" alt="Image Alfred Logo" style="width: 200px; height: auto;">
+    <img src="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png" alt="Image Alfred Logo" style="width: 200px; height: auto;">
     <h1>Image Alfred</h1>
     <p>Recolor and Privacy Preserving Image Tools</p>
 </div>

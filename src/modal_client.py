@@ -4,7 +4,6 @@ import modal
 
 app = modal.App("ImageAlfred")
 
-MODEL_PATH = "/models"
 PYTHON_VERSION = "3.12"
 CUDA_VERSION = "12.4.0"
 FLAVOR = "devel"
@@ -13,12 +12,17 @@ tag = f"{CUDA_VERSION}-{FLAVOR}-{OPERATING_SYS}"
 volume = modal.Volume.from_name("image-alfred-volume", create_if_missing=True)
 volume_path = "/vol"
 
+MODEL_CACHE_DIR = f"{volume_path}/models/cache"
+TORCH_HOME = f"{volume_path}/torch/home"
+HF_HOME = f"{volume_path}/huggingface"
+
 image = (
     modal.Image.from_registry(f"nvidia/cuda:{tag}", add_python=PYTHON_VERSION)
     .env(
         {
             "HF_HUB_ENABLE_HF_TRANSFER": "1",  # faster downloads
-            "HF_HUB_CACHE": MODEL_PATH,
+            "HF_HUB_CACHE": HF_HOME,
+            "TORCH_HOME": TORCH_HOME,
         }
     )
     .apt_install("git")
@@ -28,18 +32,23 @@ image = (
         "Pillow",
         "numpy",
         "opencv-contrib-python-headless",
+        gpu="A10G",
     )
     .pip_install(
         "torch==2.4.1",
         "torchvision==0.19.1",
         index_url="https://download.pytorch.org/whl/cu124",
+        gpu="A10G",
     )
-    .pip_install("git+https://github.com/luca-medeiros/lang-segment-anything.git")
+    .pip_install(
+        "git+https://github.com/luca-medeiros/lang-segment-anything.git",
+        gpu="A10G",
+    )
 )
 
 
 @app.function(
-    gpu="T4",
+    gpu="A10G",
     image=image,
     volumes={volume_path: volume},
 )
@@ -102,6 +111,12 @@ def change_image_objects_hsv(
 
     prompts = ". ".join(target[0] for target in targets_config)
 
+    # Set cache directories before loading model
+    os.environ["TORCH_HOME"] = TORCH_HOME
+    os.environ["HF_HOME"] = HF_HOME
+    os.makedirs(HF_HOME, exist_ok=True)
+    os.makedirs(TORCH_HOME, exist_ok=True)
+
     model = LangSAM(sam_type="sam2.1_hiera_large")
     langsam_results = model.predict(
         images_pil=[image_pil],
@@ -146,7 +161,7 @@ def change_image_objects_hsv(
 
 # not sure about input and output types, need to check
 @app.function(
-    gpu="T4",
+    gpu="A10G",
     image=image,
     volumes={volume_path: volume},
 )
@@ -218,6 +233,12 @@ def change_image_objects_lab(
 
     image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")
     prompts = ". ".join(target[0] for target in targets_config)
+
+    # Set cache directories before loading model
+    os.environ["TORCH_HOME"] = TORCH_HOME
+    os.environ["HF_HOME"] = HF_HOME
+    os.makedirs(HF_HOME, exist_ok=True)
+    os.makedirs(TORCH_HOME, exist_ok=True)
 
     model = LangSAM(sam_type="sam2.1_hiera_large")
     langsam_results = model.predict(

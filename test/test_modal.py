@@ -3,7 +3,7 @@ import os
 import modal
 
 if __name__ == "__main__":
-    input_dir = "./src/assets/input"
+    input_dir = "./src/assets/examples"
     output_dir = "./test/output"
     img_name = "test_1.jpg"
     with open(f"{input_dir}/{img_name}", "rb") as f:
