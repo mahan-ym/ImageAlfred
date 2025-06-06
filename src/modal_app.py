@@ -1,6 +1,10 @@
 import os
+from io import BytesIO
 
+import cv2
 import modal
+import numpy as np
+from PIL import Image
 
 app = modal.App("ImageAlfred")
 
@@ -52,6 +56,34 @@ image = (
     image=image,
     volumes={volume_path: volume},
 )
+def lang_sam_segment(
+    image_pil: Image.Image,
+    prompt: str,  # type: ignore
+) -> list:
+    """Segments an image using LangSAM based on a text prompt.
+    This function uses LangSAM to segment objects in the image based on the provided prompt.
+    """  # noqa: E501
+    from lang_sam import LangSAM  # type: ignore
+
+    os.environ["TORCH_HOME"] = TORCH_HOME
+    os.environ["HF_HOME"] = HF_HOME
+    os.makedirs(HF_HOME, exist_ok=True)
+    os.makedirs(TORCH_HOME, exist_ok=True)
+
+    model = LangSAM(sam_type="sam2.1_hiera_large")
+    langsam_results = model.predict(
+        images_pil=[image_pil],
+        texts_prompt=[prompt],
+    )
+
+    return langsam_results
+
+
+@app.function(
+    gpu="T4",
+    image=image,
+    volumes={volume_path: volume},
+)
 def change_image_objects_hsv(
     image_bytes: bytes,
     targets_config: list[list[str | int | float]],
@@ -100,30 +132,16 @@ def change_image_objects_hsv(
             "targets_config must be a list of lists, each containing [target_name, hue, saturation_scale]."  # noqa: E501
         )
 
-    from io import BytesIO
-
-    import cv2  # type: ignore
-    import numpy as np  # type: ignore
-    from lang_sam import LangSAM  # type: ignore
-    from PIL import Image
-
     image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")
 
     prompts = ". ".join(target[0] for target in targets_config)
 
-    # Set cache directories before loading model
     os.environ["TORCH_HOME"] = TORCH_HOME
     os.environ["HF_HOME"] = HF_HOME
     os.makedirs(HF_HOME, exist_ok=True)
     os.makedirs(TORCH_HOME, exist_ok=True)
 
-    model = LangSAM(sam_type="sam2.1_hiera_large")
-    langsam_results = model.predict(
-        images_pil=[image_pil],
-        texts_prompt=[prompts],
-        # box_threshold=0.3,
-        # text_threshold=0.25,
-    )
+    langsam_results = lang_sam_segment.remote(image_pil=image_pil, prompt=prompts)
     labels = langsam_results[0]["labels"]
     scores = langsam_results[0]["scores"]
 
@@ -159,9 +177,8 @@ def change_image_objects_hsv(
     return output_buffer.getvalue()
 
 
-# not sure about input and output types, need to check
 @app.function(
-    gpu="A10G",
+    gpu="T4",
     image=image,
     volumes={volume_path: volume},
 )
@@ -224,28 +241,18 @@ def change_image_objects_lab(
         raise ValueError(
             "targets_config must be a list of lists, each containing [target_name, new_a, new_b]."  # noqa: E501
         )
-    from io import BytesIO
-
-    import cv2
-    import numpy as np
-    from lang_sam import LangSAM  # type: ignore
-    from PIL import Image
 
     image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")
     prompts = ". ".join(target[0] for target in targets_config)
 
-    # Set cache directories before loading model
     os.environ["TORCH_HOME"] = TORCH_HOME
     os.environ["HF_HOME"] = HF_HOME
     os.makedirs(HF_HOME, exist_ok=True)
     os.makedirs(TORCH_HOME, exist_ok=True)
 
-    model = LangSAM(sam_type="sam2.1_hiera_large")
-    langsam_results = model.predict(
-        images_pil=[image_pil],
-        texts_prompt=[prompts],
-        # box_threshold=0.3,
-        # text_threshold=0.25,
+    langsam_results = lang_sam_segment.remote(
+        image_pil=image_pil,
+        prompt=prompts,
     )
     labels = langsam_results[0]["labels"]
     scores = langsam_results[0]["scores"]
@@ -281,21 +288,15 @@ def change_image_objects_lab(
     gpu="T4",
     image=image,
 )
-def apply_mosaic_with_bool_mask(
-    image: np.ndarray, mask: np.ndarray, intensity: int = 20
-):
-    import cv2  # type: ignore
-
+def apply_mosaic_with_bool_mask(image, mask, intensity: int = 20):
     h, w = image.shape[:2]
     block_size = max(1, min(intensity, min(h, w)))
 
-    # Step 1: Mosaic the entire image
     small = cv2.resize(
         image, (w // block_size, h // block_size), interpolation=cv2.INTER_LINEAR
     )
     mosaic = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
 
-    # Step 2: Apply mask to blend
     result = image.copy()
     result[mask] = mosaic[mask]
     return result
@@ -306,25 +307,16 @@ def apply_mosaic_with_bool_mask(
     image=image,
 )
 def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
-    from io import BytesIO
+    image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")
 
-    import cv2  # type: ignore
-    from lang_sam import LangSAM  # type: ignore
-    from PIL import Image
-
-    image = Image.open(BytesIO(image_bytes)).convert("RGB")
-
-    model = LangSAM(sam_type="sam2.1_hiera_large")
-    results = model.predict(
-        images_pil=[image],
-        texts_prompt=[prompt],
-        box_threshold=0.35,
-        text_threshold=0.10,
+    langsam_results = lang_sam_segment.remote(
+        image_pil=image_pil,
+        prompt=prompt,
     )
 
-    img_array = np.array(image)
+    img_array = np.array(image_pil)
 
-    for result in results:
+    for result in langsam_results:
         print(f"Found {len(result['masks'])} masks for label: {result['labels']}")
         if len(result["masks"]) == 0:
             print("No masks found for the given prompt.")
@@ -332,23 +324,19 @@ def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
         print(f"result: {result}")
         for i, mask in enumerate(result["masks"]):
             if "mask_scores" in result:
-                # Check if mask_scores is an array or scalar
                 if (
                     hasattr(result["mask_scores"], "shape")
                     and result["mask_scores"].ndim > 0
                 ):
                     mask_score = result["mask_scores"][i]
                 else:
-                    # It's a scalar, so use the value directly
                     mask_score = result["mask_scores"]
             if mask_score < 0.6:
                 print(f"Skipping mask {i + 1}/{len(result['masks'])} -> low score.")
                 continue
             print(f"Processing mask {i + 1}/{len(result['masks'])}")
             print(f"Mask score: {mask_score}")
-            # show bounding box from the result["boxes"]
             box = result["boxes"][i]
-            # Draw a rectangle around the bounding box
             cv2.rectangle(
                 img_array,
                 (int(box[0]), int(box[1])),
@@ -356,9 +344,7 @@ def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
                 (255, 0, 0),  # Blue color in BGR
                 2,  # Thickness of the rectangle
             )
-            # show label from the result["labels"]
             label = result["labels"][i]
-            # Put the label text on the image
             cv2.putText(
                 img_array,
                 label,
@@ -368,17 +354,15 @@ def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
                 (255, 0, 0),  # Blue color in BGR
                 2,  # Thickness of the text
             )
-            # Instead of drawing rectangles, apply pixelation
             mask_bool = mask.astype(bool)
 
-            # Apply pixelation to the masked area
             img_array = apply_mosaic_with_bool_mask.remote(img_array, mask_bool)
 
     modified_image = Image.fromarray(img_array)
-    # Save the modified image to a BytesIO object
     output_buffer = BytesIO()
     modified_image.save(output_buffer, format="JPEG")
     return output_buffer.getvalue()
+
 
 if __name__ == "__main__":
     input_dir = "./src/assets/input"
