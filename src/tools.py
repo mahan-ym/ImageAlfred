@@ -1,4 +1,7 @@
+from io import BytesIO
+
 import modal
+from PIL import Image, UnidentifiedImageError
 
 modal_app_name = "ImageAlfred"
 
@@ -39,9 +42,46 @@ def change_color_objects_hsv(
 
     example:
         user_input = [["hair", 30, 1.2], ["shirt", 60, 1.0]]
-    """
-    langsam_prompt = ". ".join([f"{obj[0]}" for obj in user_input])
-    pass
+    """  # noqa: E501
+    try:
+        Image.open(BytesIO(input_img))
+    except UnidentifiedImageError:
+        raise ValueError("Invalid image format or corrupted image data.")
+    except Exception as e:
+        raise ValueError(f"Could not process input image: {e}")
+
+    print("before processing input:", user_input)
+
+    for item in user_input:
+        if len(item) != 3:
+            raise ValueError(
+                "Each item in user_input must be a list of [object, hue, saturation_scale]"  # noqa: E501
+            )
+        if not isinstance(item[0], str):
+            item[0] = str(item[0])
+        if not isinstance(item[1], (int, float)):
+            item[1] = float(item[1])
+            if item[1] < 0 or item[1] > 179:
+                raise ValueError("Hue must be in the range [0, 179]")
+        if not isinstance(item[2], (int, float)):
+            item[2] = float(item[2])
+            if item[2] <= 0:
+                raise ValueError("Saturation scale must be greater than 0")
+
+    print("after processing input:", user_input)
+
+    func = modal.Function.from_name("ImageAlfred", "change_image_objects_hsv")
+    output_bytes = func.remote(image_bytes=input_img, targets_config=user_input)
+
+    if output_bytes is None:
+        raise ValueError("Received None from modal remote function.")
+    if not isinstance(output_bytes, bytes):
+        raise TypeError(
+            f"Expected bytes from modal remote function, got {type(output_bytes)}"
+        )
+
+    output_pil = Image.open(BytesIO(output_bytes)).convert("RGB")
+    return output_pil
 
 
 def change_color_objects_lab(user_input, input_img):
@@ -56,8 +96,41 @@ def change_color_objects_lab(user_input, input_img):
 
     example:
         user_input = [["hair", 128, 128], ["shirt", 100, 150]]
-    """
-    pass
+    """  # noqa: E501
+    try:
+        Image.open(BytesIO(input_img))
+    except UnidentifiedImageError:
+        raise ValueError("Invalid image format or corrupted image data.")
+    except Exception as e:
+        raise ValueError(f"Could not process input image: {e}")
+    
+    print("before processing input:", user_input)
+    for item in user_input:
+        if len(item) != 3:
+            raise ValueError(
+                "Each item in user_input must be a list of [object, new_a, new_b]"
+            )
+        if not isinstance(item[0], str):
+            item[0] = str(item[0])
+        if not isinstance(item[1], int):
+            item[1] = int(item[1])
+            if item[1] < 0 or item[1] > 255:
+                raise ValueError("new A must be in the range [0, 255]")
+        if not isinstance(item[2], int):
+            item[2] = int(item[2])
+            if item[2] < 0 or item[2] > 255:
+                raise ValueError("new B must be in the range [0, 255]")
+    print("after processing input:", user_input)
+    func = modal.Function.from_name("ImageAlfred", "change_image_objects_lab")
+    output_bytes = func.remote(image_bytes=input_img, targets_config=user_input)
+    if output_bytes is None:
+        raise ValueError("Received None from modal remote function.")
+    if not isinstance(output_bytes, bytes):
+        raise TypeError(
+            f"Expected bytes from modal remote function, got {type(output_bytes)}"
+        )
+    output_pil = Image.open(BytesIO(output_bytes)).convert("RGB")
+    return output_pil
 
 
 if __name__ == "__main__":
