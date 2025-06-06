@@ -287,6 +287,7 @@ def change_image_objects_lab(
 @app.function(
     gpu="T4",
     image=image,
+    volumes={volume_path: volume},
 )
 def apply_mosaic_with_bool_mask(image, mask, intensity: int = 20):
     h, w = image.shape[:2]
@@ -305,6 +306,7 @@ def apply_mosaic_with_bool_mask(image, mask, intensity: int = 20):
 @app.function(
     gpu="T4",
     image=image,
+    volumes={volume_path: volume},
 )
 def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
     image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")

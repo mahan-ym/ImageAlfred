@@ -16,7 +16,7 @@ def preserve_privacy(input_prompt, input_img):
     example:
         input_prompt = ["face", "license plate"]
     """
-
+    
     return input_img
 
 
