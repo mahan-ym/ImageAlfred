@@ -12,13 +12,9 @@ gr.set_static_paths(paths=[Path.cwd().absolute() / "assets"])
 
 icon = """<link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png">"""
 
-header = """
-<div style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-    <img src="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png" alt="Image Alfred Logo" style="width: 120px; height: auto; margin: 0 auto;">
-    <h1>Image Alfred</h1>
-    <p>Recolor and Privacy Preserving Image Tools</p>
-</div>
-"""  # noqa: E501
+title = """Image Alfred - Recolor and Privacy Preserving Image Tools
+<img src="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png" alt="Image Alfred Logo" style="width: 120px; height: auto; margin: 0 auto;">
+"""
 
 hsv_df_input = gr.Dataframe(
     headers=["Object", "Hue", "Saturation Scale"],
@@ -77,7 +73,7 @@ demo = gr.TabbedInterface(
         privacy_preserve_tool,
     ],
     ["Change Color Objects HSV", "Change Color Objects LAB", "Privacy Preserving Tool"],
-    title="Image Alfred",
+    title=title,
     theme=gr.themes.Default(
         primary_hue="blue",
         secondary_hue="green",
