@@ -4,7 +4,7 @@ import modal
 import numpy as np
 from PIL import Image
 
-from utils import validate_image_input
+from utils import upload_image_to_tmpfiles
 
 modal_app_name = "ImageAlfred"
 
@@ -51,7 +51,7 @@ def change_color_objects_hsv(
         TypeError: If input_img is not a supported type or modal function returns unexpected type.
     """  # noqa: E501
     print("Received input image type:", type(input_img))
-    source, input_img = validate_image_input(input_img)
+    # source, input_img = validate_image_input(input_img)
     print("before processing input:", user_input)
 
     for item in user_input:
@@ -82,7 +82,7 @@ def change_color_objects_hsv(
             f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
 
-    return output_pil
+    return upload_image_to_tmpfiles(output_pil)
 
 
 def change_color_objects_lab(user_input, input_img):
@@ -106,7 +106,6 @@ def change_color_objects_lab(user_input, input_img):
         TypeError: If input_img is not a supported type or modal function returns unexpected type.
     """  # noqa: E501
     print("Received input image type:", type(input_img))
-    source, input_img = validate_image_input(input_img)
     print("before processing input:", user_input)
     for item in user_input:
         if len(item) != 3:
@@ -133,7 +132,7 @@ def change_color_objects_lab(user_input, input_img):
         raise TypeError(
             f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
-    return output_pil
+    return upload_image_to_tmpfiles(output_pil)
 
 
 if __name__ == "__main__":

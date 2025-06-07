@@ -44,7 +44,7 @@ change_color_objects_lab_tool = gr.Interface(
     fn=change_color_objects_lab,
     inputs=[
         lab_df_input,
-        gr.Image(label="Input Image"),
+        gr.Image(label="Input Image", type="pil"),
     ],
     outputs=gr.Image(),
     title="Image Recolor tool (LAB)",
@@ -55,7 +55,7 @@ privacy_preserve_tool = gr.Interface(
     fn=privacy_preserve_image,
     inputs=[
         gr.Textbox("user_input"),
-        gr.Image(label="Input Image"),
+        gr.Image(label="Input Image", type="pil"),
     ],
     outputs=gr.Image(),
     title="Privacy preserving tool",
