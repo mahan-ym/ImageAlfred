@@ -81,8 +81,9 @@ def change_color_objects_hsv(
         raise TypeError(
             f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
+    img_link = upload_image_to_tmpfiles(output_pil)
 
-    return upload_image_to_tmpfiles(output_pil)
+    return output_pil
 
 
 def change_color_objects_lab(user_input, input_img):
@@ -132,7 +133,9 @@ def change_color_objects_lab(user_input, input_img):
         raise TypeError(
             f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
-    return upload_image_to_tmpfiles(output_pil)
+    img_link = upload_image_to_tmpfiles(output_pil)
+
+    return output_pil
 
 
 if __name__ == "__main__":
