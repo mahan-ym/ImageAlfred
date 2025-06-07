@@ -89,36 +89,12 @@ def lang_sam_segment(
     volumes={volume_path: volume},
 )
 def change_image_objects_hsv(
-    image_bytes: bytes,
+    image_pil: Image.Image,
     targets_config: list[list[str | int | float]],
-) -> bytes:
+) -> Image.Image:
     """Changes the hue and saturation of specified objects in an image.
     This function uses LangSAM to segment objects in the image based on provided prompts,
     and then modifies the hue and saturation of those objects in the HSV color space.
-
-    Parameters
-    ----------
-    image_bytes : bytes
-        image data in bytes format
-    targets_config : list[list[str  |  int  |  float]]
-        list of lists, where each inner list contains:
-        - target object name (str)
-        - hue value (int or float): openCV HSV range: 0-179, where 0 is red, 30 is yellow, 60 is green, 120 is cyan, 179 is blue
-        - saturation scale (float): 1 means no change, <1 reduces saturation, >1 increases saturation
-
-    Returns
-    -------
-    bytes
-        modified image data in bytes format
-
-    Example
-    -------
-    >>> targets_config = [
-    ...     ["hair", 30, 1.2],
-    ...     ["tshirt", 60, 1.0],
-    ...     ["pants", 90, 0.8],
-    ... ]
-    >>> change_image_objects_hsv(image_bytes, targets_config)
     """  # noqa: E501
     if not isinstance(targets_config, list) or not all(
         (
@@ -135,8 +111,6 @@ def change_image_objects_hsv(
         raise ValueError(
             "targets_config must be a list of lists, each containing [target_name, hue, saturation_scale]."  # noqa: E501
         )
-
-    image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")
 
     prompts = ". ".join(target[0] for target in targets_config)
 
@@ -176,9 +150,7 @@ def change_image_objects_hsv(
 
     output_img = cv2.cvtColor(img_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     output_img_pil = Image.fromarray(output_img)
-    output_buffer = BytesIO()
-    output_img_pil.save(output_buffer, format="PNG")
-    return output_buffer.getvalue()
+    return output_img_pil
 
 
 @app.function(
@@ -187,48 +159,12 @@ def change_image_objects_hsv(
     volumes={volume_path: volume},
 )
 def change_image_objects_lab(
-    image_bytes: bytes,
+    image_pil: Image.Image,
     targets_config: list[list[str | int | float]],
-) -> bytes:
+) -> Image.Image:
     """Changes the color of specified objects in an image.
     This function uses LangSAM to segment objects in the image based on provided prompts,
     and then modifies the color of those objects in the LAB color space.
-
-    Define new color in LAB space (OpenCV LAB ranges):
-        - L: 0-255 (lightness)
-        - A: 0-255 (green-red, 128 is neutral)
-        - B: 0-255 (blue-yellow, 128 is neutral)
-        - Color examples:
-        - Green: a=80, b=128
-        - Red: a=180, b=160
-        - Blue: a=128, b=80
-        - Yellow: a=120, b=180
-        - Purple: a=180, b=100
-
-    Parameters
-    ----------
-    image_bytes : bytes
-        binary image data
-    targets_config : list[list[str  |  int  |  float]]
-        list of lists, where each inner list contains:
-        - target object name (str)
-        - new_a (int): 0-255, green-red channel in LAB color space
-        - new_b (int): 0-255, blue-yellow channel in LAB color space
-
-
-    Returns
-    -------
-    bytes
-        binary image data of the modified image
-
-    Example
-    -------
-    >>> targets_config = [
-    ...     ["hair", 80, 128],
-    ...     ["shirt", 180, 160],
-    ...     ["pants", 120, 180],
-    ... ]
-    >>> change_image_objects_lab(image_bytes, targets_config)
     """  # noqa: E501
     if not isinstance(targets_config, list) or not all(
         (
@@ -246,7 +182,6 @@ def change_image_objects_lab(
             "targets_config must be a list of lists, each containing [target_name, new_a, new_b]."  # noqa: E501
         )
 
-    image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")
     prompts = ". ".join(target[0] for target in targets_config)
 
     os.environ["TORCH_HOME"] = TORCH_HOME
@@ -283,9 +218,8 @@ def change_image_objects_lab(
 
     output_img = cv2.cvtColor(img_lab.astype(np.uint8), cv2.COLOR_Lab2RGB)
     output_img_pil = Image.fromarray(output_img)
-    output_buffer = BytesIO()
-    output_img_pil.save(output_buffer, format="PNG")
-    return output_buffer.getvalue()
+
+    return output_img_pil
 
 
 @app.function(
@@ -312,8 +246,10 @@ def apply_mosaic_with_bool_mask(image, mask, intensity: int = 20):
     image=image,
     volumes={volume_path: volume},
 )
-def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
-    image_pil = Image.open(BytesIO(image_bytes)).convert("RGB")
+def preserve_privacy_test(
+    image_pil: Image.Image,
+    prompt: str,
+) -> Image.Image:
 
     langsam_results = lang_sam_segment.remote(
         image_pil=image_pil,
@@ -328,7 +264,7 @@ def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
         print(f"Found {len(result['masks'])} masks for label: {result['labels']}")
         if len(result["masks"]) == 0:
             print("No masks found for the given prompt.")
-            return image_bytes
+            return image_pil
         print(f"result: {result}")
         for i, mask in enumerate(result["masks"]):
             if "mask_scores" in result:
@@ -366,25 +302,6 @@ def preserve_privacy_test(image_bytes: bytes, prompt: str) -> bytes:
 
             img_array = apply_mosaic_with_bool_mask.remote(img_array, mask_bool)
 
-    modified_image = Image.fromarray(img_array)
-    output_buffer = BytesIO()
-    modified_image.save(output_buffer, format="JPEG")
-    return output_buffer.getvalue()
+    output_image_pil = Image.fromarray(img_array)
 
-
-if __name__ == "__main__":
-    input_dir = "./src/assets/input"
-    output_dir = "./src/assets/output"
-    img_name = "test_1.jpg"
-    with open(f"{input_dir}/{img_name}", "rb") as f:
-        img_bytes = f.read()
-
-    with modal.enable_output():
-        with app.run():
-            result_bytes = change_image_objects_hsv.remote(
-                img_bytes,
-                [["hair", 30, 1.2], ["tshirt", 60, 1.0], ["pants", 90, 0.8]],
-            )
-            os.makedirs(output_dir, exist_ok=True)
-            with open(f"{output_dir}/colored_hsv_{img_name}", "wb") as f:
-                f.write(result_bytes)
+    return output_image_pil

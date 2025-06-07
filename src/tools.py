@@ -1,14 +1,54 @@
+import base64
 from io import BytesIO
+from pathlib import Path
 
 import modal
-from PIL import Image, UnidentifiedImageError
+import numpy as np
+import requests
+from PIL import Image
 
 modal_app_name = "ImageAlfred"
+
+
+def validate_image_input(url_or_data):
+    """Handle different image input formats for MCP"""
+    if isinstance(url_or_data, Image.Image):
+        return url_or_data
+
+    if isinstance(url_or_data, str):
+        if url_or_data.startswith("data:image"):
+            try:
+                # Handle base64 data URLs
+                header, encoded = url_or_data.split(",", 1)
+                decoded_bytes = base64.b64decode(encoded)
+                return Image.open(BytesIO(decoded_bytes)).convert("RGB")
+            except Exception as e:
+                raise ValueError(f"Invalid base64 data URL: {e}")
+        elif url_or_data.startswith(("http://", "https://")):
+            # Handle URLs
+            try:
+                response = requests.get(url_or_data, timeout=30)
+                response.raise_for_status()
+                return Image.open(BytesIO(response.content)).convert("RGB")
+            except requests.exceptions.RequestException as e:
+                raise ValueError(f"Could not download image from URL: {e}")
+        else:
+            # Handle file paths
+            try:
+                with open(url_or_data, "rb") as f:
+                    return Image.open(f).convert("RGB")
+            except FileNotFoundError:
+                raise ValueError(f"File not found: {url_or_data}")
+            except Exception as e:
+                raise ValueError(f"Could not read file {url_or_data}: {e}")
+
+    raise ValueError(f"Unsupported image input format: {type(url_or_data)}")
 
 
 def preserve_privacy(input_prompt, input_img):
     """
     Obscure specified objects in the input image based on the input prompt.
+
     Args:
         input_prompt (list): List of [object:str].
         input_img (bytes): Input image in bytes format.
@@ -26,42 +66,28 @@ def preserve_privacy(input_prompt, input_img):
 def change_color_objects_hsv(
     user_input,
     input_img,
-):
+) -> np.ndarray | Image.Image | str | Path | None:
     """Changes the hue and saturation of specified objects in an image.
-    This function uses LangSAM to segment objects in the image based on provided prompts,
-    and then modifies the hue and saturation of those objects in the HSV color space.
 
-    Parameters
-    ----------
-    user_input : list[list[str  |  int  |  float]]
-        list of lists, where each inner list contains:
-        - target object name (str)
-        - hue value (int or float): openCV HSV range: 0-179, where 0 is red, 30 is yellow, 60 is green, 120 is cyan, 179 is blue
-        - saturation scale (float): 1 means no change, <1 reduces saturation, >1 increases saturation
-    input_img : bytes
-        image data in bytes format
+    Segments objects based on text prompts and alters their color in the HSV
+    color space. The HSV color space uses OpenCV ranges: H (0-179), S (0-255),
+    V (0-255). Common color examples include Green (hue=60), Red (hue=0),
+    Blue (hue=120), Yellow (hue=30), and Purple (hue=150), all with
+    saturation=255.
 
-    Returns
-    -------
-    Image.Image
-        PIL Image object of the modified image
+    Args:
+        user_input (list[list[str | int | float]]): A list of lists where each inner list contains three elements: target object name (str), hue value (int, 0-179), and saturation scale factor (float, >0). Example: [["hair", 30, 1.2], ["shirt", 60, 1.0]].
+        input_img (np.ndarray | Image.Image | str | None): Input image as Base64-encoded string or URL string. Cannot be None.
 
-    Example
-    -------
-    >>> user_input = [
-    ...     ["hair", 30, 1.2],
-    ...     ["tshirt", 60, 1.0],
-    ...     ["pants", 90, 0.8],
-    ... ]
-    >>> change_image_objects_hsv(user_input, input_img)
+    Returns:
+        Base64-encoded string.
+
+    Raises:
+        ValueError: If user_input format is invalid, hue values are outside [0, 179] range, saturation_scale is not positive, or image format is invalid or corrupted.
+        TypeError: If input_img is not a supported type or modal function returns unexpected type.
     """  # noqa: E501
-    try:
-        Image.open(BytesIO(input_img))
-    except UnidentifiedImageError:
-        raise ValueError("Invalid image format or corrupted image data.")
-    except Exception as e:
-        raise ValueError(f"Could not process input image: {e}")
-
+    print("Received input image type:", type(input_img))
+    input_img = validate_image_input(input_img)
     print("before processing input:", user_input)
 
     for item in user_input:
@@ -83,67 +109,40 @@ def change_color_objects_hsv(
     print("after processing input:", user_input)
 
     func = modal.Function.from_name("ImageAlfred", "change_image_objects_hsv")
-    output_bytes = func.remote(image_bytes=input_img, targets_config=user_input)
+    output_pil = func.remote(image_pil=input_img, targets_config=user_input)
 
-    if output_bytes is None:
+    if output_pil is None:
         raise ValueError("Received None from modal remote function.")
-    if not isinstance(output_bytes, bytes):
+    if not isinstance(output_pil, Image.Image):
         raise TypeError(
-            f"Expected bytes from modal remote function, got {type(output_bytes)}"
+            f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
-
-    output_pil = Image.open(BytesIO(output_bytes)).convert("RGB")
+    
     return output_pil
 
 
 def change_color_objects_lab(user_input, input_img):
-    """Changes the color of specified objects in an image.
-    This function uses LangSAM to segment objects in the image based on provided prompts,
-    and then modifies the color of those objects in the LAB color space.
+    """Changes the color of specified objects in an image using LAB color space.
 
-    Define new color in LAB space (OpenCV LAB ranges):
-        - L: 0-255 (lightness)
-        - A: 0-255 (green-red, 128 is neutral)
-        - B: 0-255 (blue-yellow, 128 is neutral)
-        - Color examples:
-        - Green: a=80, b=128
-        - Red: a=180, b=160
-        - Blue: a=128, b=80
-        - Yellow: a=120, b=180
-        - Purple: a=180, b=100
+    Segments objects based on text prompts and alters their color in the LAB
+    color space. The LAB color space uses OpenCV ranges: L (0-255, lightness),
+    A (0-255, green-red, 128 is neutral), B (0-255, blue-yellow, 128 is neutral).
+    Common color examples include Green (a=80, b=128), Red (a=180, b=160),
+    Blue (a=128, b=80), Yellow (a=120, b=180), and Purple (a=180, b=100).
 
-    Parameters
-    ----------
-    user_input : list[list[str  |  int  |  float]]
-        list of lists, where each inner list contains:
-        - target object name (str)
-        - new_a (int): 0-255, green-red channel in LAB color space
-        - new_b (int): 0-255, blue-yellow channel in LAB color space
-    input_img : bytes
-        binary image data
-    
+    Args:
+        user_input (list[list[str | int | float]]): A list of lists where each inner list contains three elements: target object name (str), new_a value (int, 0-255), and new_b value (int, 0-255). Example: [["hair", 80, 128], ["shirt", 180, 160]].
+        input_img (np.ndarray | Image.Image | str | bytes | None): Input image as Base64-encoded string or URL string. Cannot be None.
 
-    Returns
-    -------
-    Image.Image
-        PIL Image object containing the modified image
+    Returns:
+        Base64-encoded string
 
-    Example
-    -------
-    >>> user_input = [
-    ...     ["hair", 80, 128],
-    ...     ["shirt", 180, 160],
-    ...     ["pants", 120, 180],
-    ... ]
-    >>> change_image_objects_lab(user_input, input_img)
+    Raises:
+        ValueError: If user_input format is invalid, a/b values are outside [0, 255] range, or image format is invalid or corrupted.
+        TypeError: If input_img is not a supported type or modal function returns unexpected type.
     """  # noqa: E501
-    try:
-        Image.open(BytesIO(input_img))
-    except UnidentifiedImageError:
-        raise ValueError("Invalid image format or corrupted image data.")
-    except Exception as e:
-        raise ValueError(f"Could not process input image: {e}")
-    
+    print("Received input image type:", type(input_img))
+    input_img = validate_image_input(input_img)
     print("before processing input:", user_input)
     for item in user_input:
         if len(item) != 3:
@@ -160,16 +159,16 @@ def change_color_objects_lab(user_input, input_img):
             item[2] = int(item[2])
             if item[2] < 0 or item[2] > 255:
                 raise ValueError("new B must be in the range [0, 255]")
+
     print("after processing input:", user_input)
     func = modal.Function.from_name("ImageAlfred", "change_image_objects_lab")
-    output_bytes = func.remote(image_bytes=input_img, targets_config=user_input)
-    if output_bytes is None:
+    output_pil = func.remote(image_pil=input_img, targets_config=user_input)
+    if output_pil is None:
         raise ValueError("Received None from modal remote function.")
-    if not isinstance(output_bytes, bytes):
+    if not isinstance(output_pil, Image.Image):
         raise TypeError(
-            f"Expected bytes from modal remote function, got {type(output_bytes)}"
+            f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
-    output_pil = Image.open(BytesIO(output_bytes)).convert("RGB")
     return output_pil
 
 

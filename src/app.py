@@ -16,14 +16,14 @@ title = """
 """  # noqa: E501
 
 hsv_df_input = gr.Dataframe(
-    headers=["object", "hue", "saturationScale"],
+    headers=["Object", "Hue", "Saturation Scale"],
     datatype=["str", "number", "number"],
     label="Input Data",
     type="array",
 )
 
 lab_df_input = gr.Dataframe(
-    headers=["object", "new_a", "new_b"],
+    headers=["Object", "New A", "New B"],
     datatype=["str", "number", "number"],
     label="Input Data",
     type="array",
@@ -33,7 +33,7 @@ change_color_objects_hsv_tool = gr.Interface(
     fn=change_color_objects_hsv,
     inputs=[
         hsv_df_input,
-        gr.File(label="Input Image", file_types=["image"], type="binary"),
+        gr.Image(label="Input Image", type="pil"),
     ],
     outputs=gr.Image(),
     title="Image Recolor tool (HSV)",
@@ -44,7 +44,7 @@ change_color_objects_lab_tool = gr.Interface(
     fn=change_color_objects_lab,
     inputs=[
         lab_df_input,
-        gr.File(label="Input Image", file_types=["image"], type="binary"),
+        gr.Image(label="Input Image"),
     ],
     outputs=gr.Image(),
     title="Image Recolor tool (LAB)",
@@ -55,7 +55,7 @@ privacy_preserve_tool = gr.Interface(
     fn=privacy_preserve_image,
     inputs=[
         gr.Textbox("user_input"),
-        gr.File(label="Input Image", file_types=["image"], type="binary"),
+        gr.Image(label="Input Image"),
     ],
     outputs=gr.Image(),
     title="Privacy preserving tool",
