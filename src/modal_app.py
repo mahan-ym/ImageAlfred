@@ -227,7 +227,7 @@ def change_image_objects_lab(
     image=image,
     volumes={volume_path: volume},
 )
-def apply_mosaic_with_bool_mask(image, mask, intensity: int = 20):
+def apply_mosaic_with_bool_mask(image, mask, intensity: int = 50):
     h, w = image.shape[:2]
     block_size = max(1, min(intensity, min(h, w)))
 
@@ -246,16 +246,20 @@ def apply_mosaic_with_bool_mask(image, mask, intensity: int = 20):
     image=image,
     volumes={volume_path: volume},
 )
-def preserve_privacy_test(
+def preserve_privacy(
     image_pil: Image.Image,
     prompt: str,
 ) -> Image.Image:
+    os.environ["TORCH_HOME"] = TORCH_HOME
+    os.environ["HF_HOME"] = HF_HOME
+    os.makedirs(HF_HOME, exist_ok=True)
+    os.makedirs(TORCH_HOME, exist_ok=True)
 
     langsam_results = lang_sam_segment.remote(
         image_pil=image_pil,
         prompt=prompt,
         box_threshold=0.35,
-        text_threshold=0.30,
+        text_threshold=0.40,
     )
 
     img_array = np.array(image_pil)
@@ -289,10 +293,20 @@ def preserve_privacy_test(
                 2,  # Thickness of the rectangle
             )
             label = result["labels"][i]
+            score = result["scores"][i]
             cv2.putText(
                 img_array,
                 label,
                 (int(box[0]), int(box[1] - 10)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,  # Font size
+                (255, 0, 0),  # Blue color in BGR
+                2,  # Thickness of the text
+            )
+            cv2.putText(
+                img_array,
+                f"{score:.2f}",
+                (int(box[0]), int(box[1] - 30)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,  # Font size
                 (255, 0, 0),  # Blue color in BGR

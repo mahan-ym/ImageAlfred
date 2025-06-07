@@ -26,8 +26,17 @@ def privacy_preserve_image(
     example:
         input_prompt = ["face", "license plate"]
     """
+    func = modal.Function.from_name("ImageAlfred", "preserve_privacy")
+    output_pil = func.remote(image_pil=input_img, prompt=input_prompt)
 
-    return input_img
+    if output_pil is None:
+        raise ValueError("Received None from modal remote function.")
+    if not isinstance(output_pil, Image.Image):
+        raise TypeError(
+            f"Expected Image.Image from modal remote function, got {type(output_pil)}"
+        )
+
+    return output_pil
 
 
 def change_color_objects_hsv(
@@ -142,7 +151,7 @@ def change_color_objects_lab(
 
 
 if __name__ == "__main__":
-    image_pil= Image.open("./src/assets/test_image.jpg")
+    image_pil = Image.open("./src/assets/test_image.jpg")
     change_color_objects_hsv(
         user_input=[["hair", 30, 1.2], ["shirt", 60, 1.0]], input_img=image_pil
     )
