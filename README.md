@@ -16,6 +16,13 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 [Mahan Yarmohammad (Mahan-ym)](https://www.mahan-ym.com/)
 [Saaed Saadatipour (Soodoo)](https://soodoo.me/)
 
+# Used Tools
+- [Gradio](https://www.gradio.app/): Serving user interface and MCP server
+- [lang-segment-anything](https://github.com/luca-medeiros/lang-segment-anything): Which uses [SAM](https://segment-anything.com/) and [Grounding Dino](https://github.com/IDEA-Research/GroundingDINO) under the hood to segment images.
+- [HuggingFace](https://huggingface.co/): Downloading SAM and using Space for hosting.
+- [Modal.com](https://modal.com/): AI infrastructure making all the magic possible.
+
+
 ## Getting Started
 
 ### Prerequisites
