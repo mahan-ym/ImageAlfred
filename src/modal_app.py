@@ -284,34 +284,7 @@ def preserve_privacy(
                 continue
             print(f"Processing mask {i + 1}/{len(result['masks'])}")
             print(f"Mask score: {mask_score}")
-            box = result["boxes"][i]
-            cv2.rectangle(
-                img_array,
-                (int(box[0]), int(box[1])),
-                (int(box[2]), int(box[3])),
-                (255, 0, 0),  # Blue color in BGR
-                2,  # Thickness of the rectangle
-            )
-            label = result["labels"][i]
-            score = result["scores"][i]
-            cv2.putText(
-                img_array,
-                label,
-                (int(box[0]), int(box[1] - 10)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,  # Font size
-                (255, 0, 0),  # Blue color in BGR
-                2,  # Thickness of the text
-            )
-            cv2.putText(
-                img_array,
-                f"{score:.2f}",
-                (int(box[0]), int(box[1] - 30)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,  # Font size
-                (255, 0, 0),  # Blue color in BGR
-                2,  # Thickness of the text
-            )
+
             mask_bool = mask.astype(bool)
 
             img_array = apply_mosaic_with_bool_mask.remote(img_array, mask_bool)
