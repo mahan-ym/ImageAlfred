@@ -1,15 +1,20 @@
+from pathlib import Path
+
 import gradio as gr
 
-from tools import change_color_objects_hsv, change_color_objects_lab
+from tools import (
+    change_color_objects_hsv,
+    change_color_objects_lab,
+    privacy_preserve_image,
+)
 
+gr.set_static_paths(paths=[Path.cwd().absolute() / "assets"])
 
-def privacy_preserve_image(input_prompt, input_img):
-    pass
+icon = """<link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png">"""
 
-
-title = """
-<div style="text-align: center;">
-    <img src="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png" alt="Image Alfred Logo" style="width: 200px; height: auto;">
+header = """
+<div style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+    <img src="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png" alt="Image Alfred Logo" style="width: 120px; height: auto; margin: 0 auto;">
     <h1>Image Alfred</h1>
     <p>Recolor and Privacy Preserving Image Tools</p>
 </div>
@@ -18,47 +23,50 @@ title = """
 hsv_df_input = gr.Dataframe(
     headers=["Object", "Hue", "Saturation Scale"],
     datatype=["str", "number", "number"],
-    label="Input Data",
+    label="Target Objects and New Settings",
     type="array",
 )
 
 lab_df_input = gr.Dataframe(
     headers=["Object", "New A", "New B"],
     datatype=["str", "number", "number"],
-    label="Input Data",
+    label="Target Objects and New Settings",
     type="array",
 )
 
 change_color_objects_hsv_tool = gr.Interface(
     fn=change_color_objects_hsv,
     inputs=[
-        hsv_df_input,
         gr.Image(label="Input Image", type="pil"),
+        hsv_df_input,
     ],
-    outputs=gr.Image(),
-    title="Image Recolor tool (HSV)",
+    outputs=gr.Image(label="Output Image"),
+    title="Image Recolor Tool (HSV)",
     description="This tool allows you to recolor objects in an image using the HSV color space. You can specify the hue and saturation scale for each object.",  # noqa: E501
 )
 
 change_color_objects_lab_tool = gr.Interface(
     fn=change_color_objects_lab,
     inputs=[
-        lab_df_input,
         gr.Image(label="Input Image", type="pil"),
+        lab_df_input,
     ],
-    outputs=gr.Image(),
-    title="Image Recolor tool (LAB)",
-    description="Recolor an image based on user input using the LAB color space. You can specify the new_a and new_b values for each object.",  # noqa: E501
+    outputs=gr.Image(label="Output Image"),
+    title="Image Recolor Tool (LAB)",
+    description="Recolor an image based on user input using the LAB color space. You can specify the new A and new B values for each object.",  # noqa: E501
 )
 
 privacy_preserve_tool = gr.Interface(
     fn=privacy_preserve_image,
     inputs=[
-        gr.Textbox("user_input"),
         gr.Image(label="Input Image", type="pil"),
+        gr.Textbox(
+            label="Objects to Mask (dot-separated)",
+            placeholder="e.g., person. car. license plate",
+        ),  # noqa: E501
     ],
-    outputs=gr.Image(),
-    title="Privacy preserving tool",
+    outputs=gr.Image(label="Output Image"),
+    title="Privacy Preserving Tool",
     description="Upload an image and provide a prompt for the object to enforce privacy. The tool will use blurring to obscure the specified objects in the image.",  # noqa: E501
 )
 
@@ -72,11 +80,16 @@ demo = gr.TabbedInterface(
     title="Image Alfred",
     theme=gr.themes.Default(
         primary_hue="blue",
-        secondary_hue="blue",
-        font="Inter",
-        font_mono="Courier New",
+        secondary_hue="green",
+        # font="Inter",
+        # font_mono="Courier New",
     ),
+    head=icon,
 )
 
+# with gr.Blocks(title="Image Alfred", head=test) as demo:
+#     gr.HTML(header)
+#     tabs_interface.render()
+
 if __name__ == "__main__":
-    demo.launch(mcp_server=True)
+    demo.launch(mcp_server=True, max_file_size="5mb")

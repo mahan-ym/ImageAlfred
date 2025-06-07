@@ -9,13 +9,16 @@ from utils import upload_image_to_tmpfiles
 modal_app_name = "ImageAlfred"
 
 
-def preserve_privacy(input_prompt, input_img):
+def privacy_preserve_image(
+    input_img,
+    input_prompt,
+) -> np.ndarray | Image.Image | str | Path | None:
     """
     Obscure specified objects in the input image based on the input prompt.
 
     Args:
+        input_img (Image.Image): Input image in bytes format.
         input_prompt (list): List of [object:str].
-        input_img (bytes): Input image in bytes format.
 
     Returns:
         bytes: Binary image data of the modified image.
@@ -28,8 +31,8 @@ def preserve_privacy(input_prompt, input_img):
 
 
 def change_color_objects_hsv(
-    user_input,
     input_img,
+    user_input,
 ) -> np.ndarray | Image.Image | str | Path | None:
     """Changes the hue and saturation of specified objects in an image.
 
@@ -50,8 +53,6 @@ def change_color_objects_hsv(
         ValueError: If user_input format is invalid, hue values are outside [0, 179] range, saturation_scale is not positive, or image format is invalid or corrupted.
         TypeError: If input_img is not a supported type or modal function returns unexpected type.
     """  # noqa: E501
-    print("Received input image type:", type(input_img))
-    # source, input_img = validate_image_input(input_img)
     print("before processing input:", user_input)
 
     for item in user_input:
@@ -81,12 +82,15 @@ def change_color_objects_hsv(
         raise TypeError(
             f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
-    img_link = upload_image_to_tmpfiles(output_pil)
+    # img_link = upload_image_to_tmpfiles(output_pil)
 
     return output_pil
 
 
-def change_color_objects_lab(user_input, input_img):
+def change_color_objects_lab(
+    input_img,
+    user_input,
+) -> np.ndarray | Image.Image | str | Path | None:
     """Changes the color of specified objects in an image using LAB color space.
 
     Segments objects based on text prompts and alters their color in the LAB
@@ -106,7 +110,6 @@ def change_color_objects_lab(user_input, input_img):
         ValueError: If user_input format is invalid, a/b values are outside [0, 255] range, or image format is invalid or corrupted.
         TypeError: If input_img is not a supported type or modal function returns unexpected type.
     """  # noqa: E501
-    print("Received input image type:", type(input_img))
     print("before processing input:", user_input)
     for item in user_input:
         if len(item) != 3:
@@ -133,12 +136,13 @@ def change_color_objects_lab(user_input, input_img):
         raise TypeError(
             f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
-    img_link = upload_image_to_tmpfiles(output_pil)
+    # img_link = upload_image_to_tmpfiles(output_pil)
 
     return output_pil
 
 
 if __name__ == "__main__":
+    image_pil= Image.open("./src/assets/test_image.jpg")
     change_color_objects_hsv(
-        user_input=[["hair", 30, 1.2], ["shirt", 60, 1.0]], input_img=b""
+        user_input=[["hair", 30, 1.2], ["shirt", 60, 1.0]], input_img=image_pil
     )
