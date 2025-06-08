@@ -65,7 +65,7 @@ def change_color_objects_hsv(
 
 
     Args:
-        user_input : A list of lists where each inner list contains three elements: target object name (str), hue value (int, 0-179), and saturation scale factor (float, >0). Each target object must be unique within the list and it can be multiword but short and without punctuation or symbols. e.g.: [["hair", 30, 1.2], ["right person shirt", 60, 1.0]].
+        user_input : A list of lists where each inner list contains three elements: target object name (str), hue value (int, 0-179), and saturation scale factor (float, >0). Each target object must be unique within the list and it can be multiword if its needed to precisely describe the object but should be short and without punctuation or symbols. e.g.: [["hair", 30, 1.2], ["right person shirt", 60, 1.0]].
         input_img: Input image or can be URL string of the image. Cannot be None.
 
     Returns:
@@ -141,7 +141,7 @@ def change_color_objects_lab(
         - Purple: (L=?, A≈180, B≈100)
 
     Args:
-        user_input: A list of lists where each inner list contains three elements: target object name (str), new_a value (int, 0-255), and new_b value (int, 0-255). Target objects must be unique within the list and can be multiword but should be short and without punctuation or symbols. Also use singular form of the word, e.g., "person" instead of "people", "face" instead of "faces". Example: [["hair", 80, 128], ["right person shirt", 180, 160]].
+        user_input: A list of lists where each inner list contains three elements: target object name (str), new_a value (int, 0-255), and new_b value (int, 0-255). Target objects must be unique within the list and can be multiword if its needed to precisely describe the object but should be short and without punctuation or symbols. Example: [["hair", 80, 128], ["right person shirt", 180, 160]].
         input_img : Input image can be URL string of the image. Cannot be None.
 
     Returns:
