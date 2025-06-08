@@ -4,8 +4,6 @@ import modal
 import numpy as np
 from PIL import Image
 
-from utils import upload_image_to_tmpfiles
-
 modal_app_name = "ImageAlfred"
 
 
