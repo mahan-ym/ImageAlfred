@@ -12,9 +12,10 @@ gr.set_static_paths(paths=[Path.cwd().absolute() / "assets"])
 
 icon = """<link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png">"""
 
-title = """Image Alfred - Recolor and Privacy Preserving Image Tools
+title = """Image Alfred - Recolor and Privacy Preserving Image MCP Tools
 <img src="https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/icons/ImageAlfredIcon.png" alt="Image Alfred Logo" style="width: 120px; height: auto; margin: 0 auto;">
-"""
+<h4 style="text-align: center;"></h4>
+"""  # noqa: E501
 
 hsv_df_input = gr.Dataframe(
     headers=["Object", "Hue", "Saturation Scale"],
@@ -88,4 +89,4 @@ demo = gr.TabbedInterface(
 #     tabs_interface.render()
 
 if __name__ == "__main__":
-    demo.launch(mcp_server=True, max_file_size="5mb")
+    demo.launch(mcp_server=True, max_file_size="15mb")

@@ -55,6 +55,8 @@ image = (
     gpu="A10G",
     image=image,
     volumes={volume_path: volume},
+    min_containers=1,
+    timeout=60 * 3,
 )
 def lang_sam_segment(
     image_pil: Image.Image,
@@ -87,6 +89,7 @@ def lang_sam_segment(
     gpu="T4",
     image=image,
     volumes={volume_path: volume},
+    timeout=60 * 3,
 )
 def change_image_objects_hsv(
     image_pil: Image.Image,
@@ -157,6 +160,7 @@ def change_image_objects_hsv(
     gpu="T4",
     image=image,
     volumes={volume_path: volume},
+    timeout=60 * 3,
 )
 def change_image_objects_lab(
     image_pil: Image.Image,
@@ -226,6 +230,7 @@ def change_image_objects_lab(
     gpu="T4",
     image=image,
     volumes={volume_path: volume},
+    timeout=60 * 3,
 )
 def apply_mosaic_with_bool_mask(image, mask, intensity: int = 50):
     h, w = image.shape[:2]
@@ -245,6 +250,7 @@ def apply_mosaic_with_bool_mask(image, mask, intensity: int = 50):
     gpu="T4",
     image=image,
     volumes={volume_path: volume},
+    timeout=60 * 3,
 )
 def preserve_privacy(
     image_pil: Image.Image,
