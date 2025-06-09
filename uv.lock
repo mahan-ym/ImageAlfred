@@ -831,7 +831,6 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "gradio", extra = ["mcp"] },
-    { name = "matplotlib" },
     { name = "modal" },
     { name = "numpy" },
     { name = "pillow" },
@@ -840,6 +839,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "jupyterlab" },
+    { name = "matplotlib" },
     { name = "opencv-contrib-python" },
     { name = "ruff" },
     { name = "supervision" },
@@ -848,7 +848,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "gradio", extras = ["mcp"], specifier = ">=5.32.1" },
-    { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "modal", specifier = ">=1.0.2" },
     { name = "numpy", specifier = ">=2.2.6" },
     { name = "pillow", specifier = ">=11.2.1" },
@@ -857,6 +856,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "jupyterlab", specifier = ">=4.4.3" },
+    { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "opencv-contrib-python", specifier = ">=4.11.0.86" },
     { name = "ruff", specifier = ">=0.11.12" },
     { name = "supervision", specifier = ">=0.25.1" },
