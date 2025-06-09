@@ -6,6 +6,7 @@ from tools import (
     change_color_objects_hsv,
     change_color_objects_lab,
     privacy_preserve_image,
+    remove_background,
 )
 
 gr.set_static_paths(paths=[Path.cwd().absolute() / "assets"])
@@ -30,7 +31,7 @@ hsv_df_input = gr.Dataframe(
 lab_df_input = gr.Dataframe(
     headers=["Object", "New A", "New B"],
     datatype=["str", "number", "number"],
-    col_count=(3,"fixed"),
+    col_count=(3, "fixed"),
     label="Target Objects and New Settings",
     type="array",
 )
@@ -119,13 +120,37 @@ privacy_preserve_tool = gr.Interface(
     ],
 )
 
+remove_background_tool = gr.Interface(
+    fn=remove_background,
+    inputs=[
+        gr.Image(label="Input Image", type="pil"),
+    ],
+    outputs=gr.Image(label="Output Image"),
+    title="Remove Image Background Tool",
+    description="Upload an image remove the background.",
+    examples=[
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_5.jpg",
+        ],
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_6.jpg",
+        ],
+    ],
+)
+
 demo = gr.TabbedInterface(
     [
         change_color_objects_hsv_tool,
         change_color_objects_lab_tool,
         privacy_preserve_tool,
+        remove_background_tool,
     ],
-    ["Change Color Objects HSV", "Change Color Objects LAB", "Privacy Preserving Tool"],
+    [
+        "Change Color Objects HSV",
+        "Change Color Objects LAB",
+        "Privacy Preserving Tool",
+        "Remove Background Tool",
+    ],
     title=title,
     theme=gr.themes.Default(
         primary_hue="blue",
