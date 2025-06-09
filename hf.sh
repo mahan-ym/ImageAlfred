@@ -5,7 +5,6 @@ REPO_URL="https://github.com/mahan-ym/ImageAlfred"
 REPO_DIR="ImageAlfred"
 TEMP_DIR="./tmp"
 SRC_DIR="src"
-REQUIREMENTS_FILE="requirements.txt"
 
 echo "🚀 Starting Huggingface Space update script..."
 
@@ -32,6 +31,17 @@ if [ -d "$SRC_DIR" ]; then
 fi
 cp -r "$TEMP_DIR/$REPO_DIR/$SRC_DIR" .
 mv "$TEMP_DIR/$REPO_DIR/Makefile" .
+mv "$TEMP_DIR/$REPO_DIR/requirements.txt" .
+
+# Concatenate README files
+echo "📄 Creating combined README file..."
+if [ -f "$TEMP_DIR/$REPO_DIR/hf_readme.md" ] && [ -f "$TEMP_DIR/$REPO_DIR/README.md" ]; then
+    cat "$TEMP_DIR/$REPO_DIR/hf_readme.md" "$TEMP_DIR/$REPO_DIR/README.md" > README.md
+    echo "✅ Combined README created successfully!"
+else
+    echo "⚠️ Could not find one or both README files for concatenation."
+fi
+
 
 # Check if copy was successful
 if [ $? -eq 0 ]; then
