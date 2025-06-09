@@ -32,6 +32,10 @@ fi
 cp -r "$TEMP_DIR/$REPO_DIR/$SRC_DIR" .
 mv "$TEMP_DIR/$REPO_DIR/Makefile" .
 mv "$TEMP_DIR/$REPO_DIR/requirements.txt" .
+mv "$TEMP_DIR/$REPO_DIR/pyproject.toml" .
+mv "$TEMP_DIR/$REPO_DIR/uv.lock" .
+mv "$TEMP_DIR/$REPO_DIR/claude_desktop_config.json" .
+mv "$TEMP_DIR/$REPO_DIR/LICENSE" .
 
 # Concatenate README files
 echo "📄 Creating combined README file..."

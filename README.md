@@ -1,4 +1,3 @@
-<!-- ![Image Alfred](./src/assets/icons/ImageAlfredIcon.png) -->
 
 <div align="center">
 <img src="./src/assets/icons/ImageAlfredIcon.png" alt="ImageAlfred" width=200 height=200>
