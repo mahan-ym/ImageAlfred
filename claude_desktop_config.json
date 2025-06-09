@@ -1,0 +1,22 @@
+{
+    "mcpServers": {
+        "Image Alfred": {
+            "command": "npx",
+            "args": [
+                "mcp-remote",
+                "https://agents-mcp-hackathon-imagealfred.hf.space/gradio_api/mcp/sse",
+                "--transport",
+                "sse-only"
+            ]
+        },
+        "local Image Alfred": {
+            "command": "npx",
+            "args": [
+                "mcp-remote",
+                "http://127.0.0.1:7860/gradio_api/mcp/sse",
+                "--transport",
+                "sse-only"
+            ]
+        }
+    }
+}
