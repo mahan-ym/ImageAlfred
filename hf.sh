@@ -31,6 +31,7 @@ if [ -d "$SRC_DIR" ]; then
     rm -rf "$SRC_DIR"
 fi
 cp -r "$TEMP_DIR/$REPO_DIR/$SRC_DIR" .
+mv "$TEMP_DIR/$REPO_DIR/Makefile" .
 
 # Check if copy was successful
 if [ $? -eq 0 ]; then
