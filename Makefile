@@ -24,4 +24,6 @@ hf:
 	./hf.sh
 
 requirements:
-	uv pip compile --no-annotate pyproject.toml --no-deps --no-strip-extras | sed -E 's/([a-zA-Z0-9_-]+(\[[a-zA-Z0-9_,-]+\])?)[=><~!].*/\1/g' > requirements.txt
+	uv pip compile --no-annotate pyproject.toml --no-deps --no-strip-extras --no-header \
+	| sed -E 's/([a-zA-Z0-9_-]+(\[[a-zA-Z0-9_,-]+\])?)[=><~!].*/\1/g' \
+	> requirements.txt
