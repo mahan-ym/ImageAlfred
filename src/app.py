@@ -20,13 +20,17 @@ title = """Image Alfred - Recolor and Privacy Preserving Image MCP Tools
 hsv_df_input = gr.Dataframe(
     headers=["Object", "Hue", "Saturation Scale"],
     datatype=["str", "number", "number"],
+    col_count=(3, "fixed"),
+    show_row_numbers=True,
     label="Target Objects and New Settings",
     type="array",
+    # row_count=(1, "dynamic"),
 )
 
 lab_df_input = gr.Dataframe(
     headers=["Object", "New A", "New B"],
     datatype=["str", "number", "number"],
+    col_count=(3,"fixed"),
     label="Target Objects and New Settings",
     type="array",
 )
@@ -39,7 +43,23 @@ change_color_objects_hsv_tool = gr.Interface(
     ],
     outputs=gr.Image(label="Output Image"),
     title="Image Recolor Tool (HSV)",
-    description="This tool allows you to recolor objects in an image using the HSV color space. You can specify the hue and saturation scale for each object.",  # noqa: E501
+    description="""
+    This tool allows you to recolor objects in an image using the HSV color space.
+    You can specify the hue and saturation scale for each object.""",  # noqa: E501
+    examples=[
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_1.jpg",
+            [["pants", 128, 1]],
+        ],
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_4.jpg",
+            [["desk", 15, 0.5], ["left cup", 40, 1.1]],
+        ],
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_5.jpg",
+            [["suits", 60, 1.5], ["pants", 10, 0.8]],
+        ],
+    ],
 )
 
 change_color_objects_lab_tool = gr.Interface(
@@ -50,7 +70,24 @@ change_color_objects_lab_tool = gr.Interface(
     ],
     outputs=gr.Image(label="Output Image"),
     title="Image Recolor Tool (LAB)",
-    description="Recolor an image based on user input using the LAB color space. You can specify the new A and new B values for each object.",  # noqa: E501
+    description="""
+    Recolor an image based on user input using the LAB color space.
+    You can specify the new A and new B values for each object.
+    """,  # noqa: E501
+    examples=[
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_1.jpg",
+            [["pants", 128, 1]],
+        ],
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_4.jpg",
+            [["desk", 15, 0.5], ["left cup", 40, 1.1]],
+        ],
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_5.jpg",
+            [["suits", 60, 1.5], ["pants", 10, 0.8]],
+        ],
+    ],
 )
 
 privacy_preserve_tool = gr.Interface(
@@ -60,11 +97,26 @@ privacy_preserve_tool = gr.Interface(
         gr.Textbox(
             label="Objects to Mask (dot-separated)",
             placeholder="e.g., person. car. license plate",
-        ),  # noqa: E501
+        ),
+        gr.Slider(
+            label="Privacy Strength",
+            minimum=1,
+            maximum=50,
+            value=15,
+            step=1,
+            info="Higher values result in stronger blurring.",
+        ),
     ],
     outputs=gr.Image(label="Output Image"),
     title="Privacy Preserving Tool",
     description="Upload an image and provide a prompt for the object to enforce privacy. The tool will use blurring to obscure the specified objects in the image.",  # noqa: E501
+    examples=[
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_3.jpg",
+            "license plate.",
+            10,
+        ],
+    ],
 )
 
 demo = gr.TabbedInterface(

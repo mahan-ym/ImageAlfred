@@ -55,7 +55,7 @@ image = (
     gpu="A10G",
     image=image,
     volumes={volume_path: volume},
-    min_containers=1,
+    # min_containers=1,
     timeout=60 * 3,
 )
 def lang_sam_segment(
@@ -69,11 +69,6 @@ def lang_sam_segment(
     """  # noqa: E501
     from lang_sam import LangSAM  # type: ignore
 
-    os.environ["TORCH_HOME"] = TORCH_HOME
-    os.environ["HF_HOME"] = HF_HOME
-    os.makedirs(HF_HOME, exist_ok=True)
-    os.makedirs(TORCH_HOME, exist_ok=True)
-
     model = LangSAM(sam_type="sam2.1_hiera_large")
     langsam_results = model.predict(
         images_pil=[image_pil],
@@ -81,6 +76,14 @@ def lang_sam_segment(
         box_threshold=box_threshold,
         text_threshold=text_threshold,
     )
+    if len(langsam_results[0]["labels"]) == 0:
+        print("No masks found for the given prompt.")
+        return None
+    
+    print(f"found {len(langsam_results[0]['labels'])} masks for prompt: {prompt}")
+    print("labels:", langsam_results[0]["labels"])
+    print("scores:", langsam_results[0]["scores"])
+    print("masks scores:", langsam_results[0].get("mask_scores", "No mask scores available"))  # noqa: E501
 
     return langsam_results
 
@@ -114,15 +117,13 @@ def change_image_objects_hsv(
         raise ValueError(
             "targets_config must be a list of lists, each containing [target_name, hue, saturation_scale]."  # noqa: E501
         )
-
+    print("Change image objects hsv targets config:", targets_config)
     prompts = ". ".join(target[0] for target in targets_config)
 
-    os.environ["TORCH_HOME"] = TORCH_HOME
-    os.environ["HF_HOME"] = HF_HOME
-    os.makedirs(HF_HOME, exist_ok=True)
-    os.makedirs(TORCH_HOME, exist_ok=True)
-
     langsam_results = lang_sam_segment.remote(image_pil=image_pil, prompt=prompts)
+    if not langsam_results:
+        return image_pil
+
     labels = langsam_results[0]["labels"]
     scores = langsam_results[0]["scores"]
 
@@ -186,17 +187,17 @@ def change_image_objects_lab(
             "targets_config must be a list of lists, each containing [target_name, new_a, new_b]."  # noqa: E501
         )
 
-    prompts = ". ".join(target[0] for target in targets_config)
+    print("change image objects lab targets config:", targets_config)
 
-    os.environ["TORCH_HOME"] = TORCH_HOME
-    os.environ["HF_HOME"] = HF_HOME
-    os.makedirs(HF_HOME, exist_ok=True)
-    os.makedirs(TORCH_HOME, exist_ok=True)
+    prompts = ". ".join(target[0] for target in targets_config)
 
     langsam_results = lang_sam_segment.remote(
         image_pil=image_pil,
         prompt=prompts,
     )
+    if not langsam_results:
+        return image_pil
+
     labels = langsam_results[0]["labels"]
     scores = langsam_results[0]["scores"]
     img_array = np.array(image_pil)
@@ -232,9 +233,17 @@ def change_image_objects_lab(
     volumes={volume_path: volume},
     timeout=60 * 3,
 )
-def apply_mosaic_with_bool_mask(image, mask, intensity: int = 50):
+def apply_mosaic_with_bool_mask(
+    image: np.ndarray,
+    mask: np.ndarray,
+    privacy_strength: int,
+) -> np.ndarray:
     h, w = image.shape[:2]
-    block_size = max(1, min(intensity, min(h, w)))
+    image_size_factor = min(h, w) / 1000
+    block_size = int(max(1, (privacy_strength * image_size_factor)))
+
+    # Ensure block_size is at least 1 and doesn't exceed half of image dimensions
+    block_size = max(1, min(block_size, min(h, w) // 2))
 
     small = cv2.resize(
         image, (w // block_size, h // block_size), interpolation=cv2.INTER_LINEAR
@@ -255,11 +264,12 @@ def apply_mosaic_with_bool_mask(image, mask, intensity: int = 50):
 def preserve_privacy(
     image_pil: Image.Image,
     prompt: str,
+    privacy_strength: int = 15,
 ) -> Image.Image:
-    os.environ["TORCH_HOME"] = TORCH_HOME
-    os.environ["HF_HOME"] = HF_HOME
-    os.makedirs(HF_HOME, exist_ok=True)
-    os.makedirs(TORCH_HOME, exist_ok=True)
+    """
+    Preserves privacy in an image by applying a mosaic effect to specified objects.
+    """
+    print(f"Preserving privacy for prompt: {prompt} with strength {privacy_strength}")
 
     langsam_results = lang_sam_segment.remote(
         image_pil=image_pil,
@@ -267,15 +277,14 @@ def preserve_privacy(
         box_threshold=0.35,
         text_threshold=0.40,
     )
+    if not langsam_results:
+        return image_pil
 
     img_array = np.array(image_pil)
 
     for result in langsam_results:
-        print(f"Found {len(result['masks'])} masks for label: {result['labels']}")
-        if len(result["masks"]) == 0:
-            print("No masks found for the given prompt.")
-            return image_pil
         print(f"result: {result}")
+        
         for i, mask in enumerate(result["masks"]):
             if "mask_scores" in result:
                 if (
@@ -288,12 +297,15 @@ def preserve_privacy(
             if mask_score < 0.6:
                 print(f"Skipping mask {i + 1}/{len(result['masks'])} -> low score.")
                 continue
-            print(f"Processing mask {i + 1}/{len(result['masks'])}")
-            print(f"Mask score: {mask_score}")
+            print(
+                f"Processing mask {i + 1}/{len(result['masks'])} Mask score: {mask_score}"  # noqa: E501
+            )
 
             mask_bool = mask.astype(bool)
 
-            img_array = apply_mosaic_with_bool_mask.remote(img_array, mask_bool)
+            img_array = apply_mosaic_with_bool_mask.remote(
+                img_array, mask_bool, privacy_strength
+            )
 
     output_image_pil = Image.fromarray(img_array)
 
