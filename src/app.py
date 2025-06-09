@@ -60,13 +60,6 @@ change_color_objects_hsv_tool = gr.Interface(
                 ["shirt", 51, 51, 37],
             ],
         ],
-        [
-            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_5.jpg",
-            [
-                ["suits", 63, 74, 129],
-                ["pants", 0, 102, 51],
-            ],
-        ],
     ],
 )
 
