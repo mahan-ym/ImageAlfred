@@ -48,6 +48,10 @@ image = (
         "git+https://github.com/luca-medeiros/lang-segment-anything.git",
         gpu="A10G",
     )
+    .pip_install(
+        "git+https://github.com/PramaLLC/BEN2.git#egg=ben2",
+        gpu="A10G",
+    )
 )
 
 
@@ -79,11 +83,14 @@ def lang_sam_segment(
     if len(langsam_results[0]["labels"]) == 0:
         print("No masks found for the given prompt.")
         return None
-    
+
     print(f"found {len(langsam_results[0]['labels'])} masks for prompt: {prompt}")
     print("labels:", langsam_results[0]["labels"])
     print("scores:", langsam_results[0]["scores"])
-    print("masks scores:", langsam_results[0].get("mask_scores", "No mask scores available"))  # noqa: E501
+    print(
+        "masks scores:",
+        langsam_results[0].get("mask_scores", "No mask scores available"),
+    )  # noqa: E501
 
     return langsam_results
 
@@ -284,7 +291,7 @@ def preserve_privacy(
 
     for result in langsam_results:
         print(f"result: {result}")
-        
+
         for i, mask in enumerate(result["masks"]):
             if "mask_scores" in result:
                 if (
@@ -310,3 +317,27 @@ def preserve_privacy(
     output_image_pil = Image.fromarray(img_array)
 
     return output_image_pil
+
+
+@app.function(
+    gpu="A10G",
+    image=image,
+    volumes={volume_path: volume},
+    timeout=60 * 2,
+)
+def remove_background(image_pil: Image.Image) -> Image.Image:
+    from ben2 import BEN_Base
+    import torch
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    print("type of image_pil:", type(image_pil))
+    model = BEN_Base.from_pretrained("PramaLLC/BEN2")
+    model.to(device).eval()
+
+    output_image = model.inference(
+        image_pil,
+        refine_foreground=True,
+    )
+    print(f"output type: {type(output_image)}")
+    return output_image

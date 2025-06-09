@@ -9,6 +9,35 @@ from PIL import Image
 modal_app_name = "ImageAlfred"
 
 
+def remove_background(
+    input_img,
+) -> np.ndarray | Image.Image | str | Path | None:
+    """
+    Remove the background of the image.
+
+    Args:
+        input_img: Input image or can be URL string of the image or base64 string. Cannot be None.
+    Returns:
+        bytes: Binary image data of the modified image.
+    """  # noqa: E501
+    if not input_img:
+        raise gr.Error("Input image cannot be None or empty.")
+
+    func = modal.Function.from_name("ImageAlfred", "remove_background")
+    output_pil = func.remote(
+        image_pil=input_img,
+    )
+
+    if output_pil is None:
+        raise gr.Error("Received None from server.")
+    if not isinstance(output_pil, Image.Image):
+        raise gr.Error(
+            f"Expected Image.Image from server function, got {type(output_pil)}"
+        )
+
+    return output_pil
+
+
 def privacy_preserve_image(
     input_img,
     input_prompt,
@@ -99,7 +128,7 @@ def change_color_objects_hsv(
         )
     if not input_img:
         raise gr.Error("input img cannot be None or empty.")
-    
+
     print("before processing input:", user_input)
     valid_pattern = re.compile(r"^[a-zA-Z\s]+$")
     for item in user_input:
@@ -198,7 +227,7 @@ def change_color_objects_lab(
         raise gr.Error("input img cannot be None or empty.")
     valid_pattern = re.compile(r"^[a-zA-Z\s]+$")
     print("before processing input:", user_input)
-    
+
     for item in user_input:
         if len(item) != 3:
             raise gr.Error(
