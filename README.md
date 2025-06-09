@@ -9,6 +9,7 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 
 <img alt="Python Version from PEP 621 TOML" src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fmahan-ym%2FImageAlfred%2Fmain%2Fpyproject.toml">
 <img src="https://badge.mcpx.dev?type=server" title="MCP Server"/>
+<img alt="GitHub License" src="https://img.shields.io/github/license/mahan-ym/ImageAlfred">
 
 <a href=https://huggingface.co> <img src="src/assets/icons/hf-logo.svg" alt="huggingface" height=40> </a>
 <a href="https://www.python.org"><img src="src/assets/icons/python-logo-only.svg" alt="python" height=40></a>
