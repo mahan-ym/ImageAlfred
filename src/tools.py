@@ -90,36 +90,22 @@ def change_color_objects_hsv(
 ) -> np.ndarray | Image.Image | str | Path | None:
     """
     Changes the hue and saturation of specified objects in an image using the HSV color space.
-
-    This function segments objects in the image based on a user-provided text prompt, then
-    modifies their hue and saturation in the HSV (Hue, Saturation, Value) space. HSV is intuitive
-    for color manipulation where users think in terms of basic color categories and intensity,
-    making it useful for broad, vivid color shifts.
-
+    This function segments image regions based on a user-provided text prompt and applies
+    color transformations in the HSV color space. HSV separates chromatic content (hue) from
+    intensity (value), making it more intuitive for color manipulation tasks.
     Use this method when:
-    - Performing broad color changes or visual effects (e.g., turning a shirt from red to blue).
-    - Needing intuitive control over color categories (e.g., shifting everything that's red to purple).
-    - Saturation and vibrancy manipulation are more important than accurate perceptual matching.
-
-    OpenCV HSV Ranges:
-        - H: 0-179 (Hue angle on color wheel, where 0 = red, 60 = green, 120 = blue, etc.)
-        - S: 0-255 (Saturation)
-        - V: 0-255 (Brightness)
-
-    Common HSV color references:
-        - Red: (Hue≈0), Green: (Hue≈60), Blue: (Hue≈120), Yellow: (Hue≈30), Purple: (Hue≈150)
-        - Typically used with Saturation=255 for vivid colors.
-
+    - You want to change the color of objects based on their hue and saturation.
+    - You want to apply color transformations that are less influenced by lighting conditions or brightness variations.
 
     Args:
         input_img: Input image or can be URL string of the image or base64 string. Cannot be None.
-        user_input : A list of target specifications for color transformation. Each inner list must contain exactly three elements in the following order: 1. target_object (str) - A short, human-readable description of the object to be modified.Multi-word descriptions are allowed for disambiguation (e.g., "right person shirt"), but they must be at most three words and concise and free of punctuation, symbols, or special characters.2. hue (int) - Desired hue value in the HSV color space, ranging from 0 to 179. Represents the color angle on the HSV color wheel (e.g., 0 = red, 60 = green, 120 = blue)3. saturation_scale (float) - A multiplicative scale factor applied to the current saturation   of the object (must be > 0). For example, 1.0 preserves current saturation, 1.2 increases vibrancy, and 0.8 slightly desaturates. Each target object must be uniquely defined in the list to avoid conflicting transformations.Example: [["hair", 30, 1.2], ["right person shirt", 60, 1.0]]
+        user_input : A list of target specifications for color transformation. Each inner list must contain exactly four elements in the following order: 1. target_object (str) - A short, human-readable description of the object to be modified. Multi-word(not recommended) descriptions are allowed for disambiguation (e.g., "right person shirt"), but they must be at most three words and concise and free of punctuation, symbols, or special characters.2. Red (int) - Desired red value in RGB color space from 0 to 255. 3. Green (int) - Desired green value in RGB color space from 0 to 255. 4. Blue (int) - Desired blue value in RGB color space from 0 to 255. Example: user_input = [["hair", 30, 55, 255], ["shirt", 70, 0 , 157]].
 
     Returns:
         Base64-encoded string.
 
     Raises:
-        ValueError: If user_input format is invalid, hue values are outside [0, 179] range, saturation_scale is not positive, or image format is invalid or corrupted.
+        ValueError: If user_input format is invalid, or image format is invalid or corrupted.
         TypeError: If input_img is not a supported type or modal function returns unexpected type.
     """  # noqa: E501
     if len(user_input) == 0 or not isinstance(user_input, list):
@@ -132,9 +118,9 @@ def change_color_objects_hsv(
     print("before processing input:", user_input)
     valid_pattern = re.compile(r"^[a-zA-Z\s]+$")
     for item in user_input:
-        if len(item) != 3:
+        if len(item) != 4:
             raise gr.Error(
-                "Each item in user_input must be a list of [object, hue, saturation_scale]"  # noqa: E501
+                "Each item in user_input must be a list of [object, red, green, blue]"  # noqa: E501
             )
         if not item[0] or not valid_pattern.match(item[0]):
             raise gr.Error(
@@ -143,24 +129,27 @@ def change_color_objects_hsv(
 
         if not isinstance(item[0], str):
             item[0] = str(item[0])
-        if not item[1]:
-            raise gr.Error("Hue must be set and cannot be empty.")
-        if not isinstance(item[1], (int, float)):
-            try:
-                item[1] = int(item[1])
-            except ValueError:
-                raise gr.Error("Hue must be an integer.")
-            if item[1] < 0 or item[1] > 179:
-                raise gr.Error("Hue must be in the range [0, 179]")
-        if not item[2]:
-            raise gr.Error("Saturation scale must be set and cannot be empty.")
-        if not isinstance(item[2], (int, float)):
-            try:
-                item[2] = float(item[2])
-            except ValueError:
-                raise gr.Error("Saturation scale must be a float number.")
-            if item[2] <= 0:
-                raise gr.Error("Saturation scale must be greater than 0")
+
+        try:
+            item[1] = int(item[1])
+        except ValueError:
+            raise gr.Error("Red must be an integer.")
+        if item[1] < 0 or item[1] > 255:
+            raise gr.Error("Red must be in the range [0, 255]")
+        
+        try:
+            item[2] = int(item[2])
+        except ValueError:
+            raise gr.Error("Green must be an integer.")
+        if item[2] < 0 or item[2] > 255:
+            raise gr.Error("Green must be in the range [0, 255]")
+        
+        try:
+            item[3] = int(item[3])
+        except ValueError:
+            raise gr.Error("Blue must be an integer.")
+        if item[3] < 0 or item[3] > 255:
+            raise gr.Error("Blue must be in the range [0, 255]")
 
     print("after processing input:", user_input)
 

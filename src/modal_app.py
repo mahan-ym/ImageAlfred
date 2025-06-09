@@ -107,19 +107,20 @@ def change_image_objects_hsv(
     image_pil: Image.Image,
     targets_config: list[list[str | int | float]],
 ) -> Image.Image:
-    """Changes the hue and saturation of specified objects in an image.
-    This function uses LangSAM to segment objects in the image based on provided prompts,
-    and then modifies the hue and saturation of those objects in the HSV color space.
-    """  # noqa: E501
     if not isinstance(targets_config, list) or not all(
         (
             isinstance(target, list)
-            and len(target) == 3
+            and len(target) == 4
             and isinstance(target[0], str)
-            and isinstance(target[1], (int, float))
-            and isinstance(target[2], (int, float))
-            and 0 <= target[1] <= 179
+            and isinstance(target[1], (int))
+            and isinstance(target[2], (int))
+            and isinstance(target[3], (int))
+            and target[1] >= 0
+            and target[1] <= 255
             and target[2] >= 0
+            and target[2] <= 255
+            and target[3] >= 0
+            and target[3] <= 255
         )
         for target in targets_config
     ):
@@ -140,23 +141,50 @@ def change_image_objects_hsv(
     img_hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
 
     for idx, label in enumerate(output_labels):
-        if not label or label=="":
+        if not label or label == "":
             print("Skipping empty label.")
             continue
         input_label, score, _ = process.extractOne(label, input_labels)
         input_label_idx = input_labels.index(input_label)
 
-        hue = targets_config[input_label_idx][1]
-        saturation_scale = targets_config[input_label_idx][2]
+        target_rgb = targets_config[input_label_idx][1:]
+        target_hsv = cv2.cvtColor(np.uint8([[target_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
 
+        mask = langsam_results[0]["masks"][idx].astype(bool)
+        h, s, v = cv2.split(img_hsv)
+        # Convert all channels to float32 for consistent processing
+        h = h.astype(np.float32)
+        s = s.astype(np.float32)
+        v = v.astype(np.float32)
 
-        mask = langsam_results[0]["masks"][idx]
-        mask_bool = mask.astype(bool)
+        # Compute original S and V means inside the mask
+        mean_s = np.mean(s[mask])
+        mean_v = np.mean(v[mask])
 
-        img_hsv[mask_bool, 0] = float(hue)
-        img_hsv[mask_bool, 1] = np.minimum(
-            img_hsv[mask_bool, 1] * saturation_scale,
-            255.0,
+        # Target S and V
+        target_hue, target_s, target_v = target_hsv
+
+        # Compute scaling factors (avoid div by zero)
+        scale_s = target_s / mean_s if mean_s > 0 else 1.0
+        scale_v = target_v / mean_v if mean_v > 0 else 1.0
+
+        scale_s = np.clip(scale_s, 0.8, 1.2)  
+        scale_v = np.clip(scale_v, 0.8, 1.2)
+        
+        # Apply changes only in mask
+        h[mask] = target_hue
+        s = s.astype(np.float32)
+        v = v.astype(np.float32)
+        s[mask] = np.clip(s[mask] * scale_s, 0, 255)
+        v[mask] = np.clip(v[mask] * scale_v, 0, 255)
+
+        # Merge and convert back
+        img_hsv = cv2.merge(
+            [
+                h.astype(np.uint8),
+                s.astype(np.uint8),
+                v.astype(np.uint8),
+            ]
         )
 
     output_img = cv2.cvtColor(img_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
@@ -204,7 +232,7 @@ def change_image_objects_lab(
     )
     if not langsam_results:
         return image_pil
-    
+
     input_labels = [target[0] for target in targets_config]
     output_labels = langsam_results[0]["labels"]
     scores = langsam_results[0]["scores"]

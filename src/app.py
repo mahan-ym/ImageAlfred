@@ -19,13 +19,12 @@ title = """Image Alfred - Recolor and Privacy Preserving Image MCP Tools
 """  # noqa: E501
 
 hsv_df_input = gr.Dataframe(
-    headers=["Object", "Hue", "Saturation Scale"],
-    datatype=["str", "number", "number"],
-    col_count=(3, "fixed"),
+    headers=["Object", "Red", "Green", "Blue"],
+    datatype=["str", "number", "number", "number"],
+    col_count=(4, "fixed"),
     show_row_numbers=True,
-    label="Target Objects and New Settings",
+    label="Target Objects and Their new RGB Colors",
     type="array",
-    # row_count=(1, "dynamic"),
 )
 
 lab_df_input = gr.Dataframe(
@@ -46,19 +45,27 @@ change_color_objects_hsv_tool = gr.Interface(
     title="Image Recolor Tool (HSV)",
     description="""
     This tool allows you to recolor objects in an image using the HSV color space.
-    You can specify the hue and saturation scale for each object.""",  # noqa: E501
+    You can specify the RGB values for each object.""",  # noqa: E501
     examples=[
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_1.jpg",
-            [["pants", 128, 1]],
+            [
+                ["pants", 255, 178, 102],
+            ],
         ],
         [
-            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_4.jpg",
-            [["desk", 15, 0.5], ["left cup", 40, 1.1]],
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_8.jpg",
+            [
+                ["pants", 114, 117, 34],
+                ["shirt", 51, 51, 37],
+            ],
         ],
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_5.jpg",
-            [["suits", 60, 1.5], ["pants", 10, 0.8]],
+            [
+                ["suits", 63, 74, 129],
+                ["pants", 0, 102, 51],
+            ],
         ],
     ],
 )
