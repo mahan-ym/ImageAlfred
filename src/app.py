@@ -127,7 +127,7 @@ remove_background_tool = gr.Interface(
     ],
     outputs=gr.Image(label="Output Image"),
     title="Remove Image Background Tool",
-    description="Upload an image remove the background.",
+    description="Upload an image to remove the background.",
     examples=[
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_5.jpg",

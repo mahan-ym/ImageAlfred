@@ -5,6 +5,7 @@ import cv2
 import modal
 import numpy as np
 from PIL import Image
+from rapidfuzz import process
 
 app = modal.App("ImageAlfred")
 
@@ -36,6 +37,7 @@ image = (
         "Pillow",
         "numpy",
         "opencv-contrib-python-headless",
+        "RapidFuzz",
         gpu="A10G",
     )
     .pip_install(
@@ -130,27 +132,25 @@ def change_image_objects_hsv(
     langsam_results = lang_sam_segment.remote(image_pil=image_pil, prompt=prompts)
     if not langsam_results:
         return image_pil
-
-    labels = langsam_results[0]["labels"]
+    input_labels = [target[0] for target in targets_config]
+    output_labels = langsam_results[0]["labels"]
     scores = langsam_results[0]["scores"]
 
     img_array = np.array(image_pil)
     img_hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
 
-    for target_spec in targets_config:
-        target_obj = target_spec[0]
-        hue = target_spec[1]
-        saturation_scale = target_spec[2]
-
-        try:
-            mask_idx = labels.index(target_obj)
-        except ValueError:
-            print(
-                f"Warning: Label '{target_obj}' not found in the image. Skipping this target."  # noqa: E501
-            )
+    for idx, label in enumerate(output_labels):
+        if not label or label=="":
+            print("Skipping empty label.")
             continue
+        input_label, score, _ = process.extractOne(label, input_labels)
+        input_label_idx = input_labels.index(input_label)
 
-        mask = langsam_results[0]["masks"][mask_idx]
+        hue = targets_config[input_label_idx][1]
+        saturation_scale = targets_config[input_label_idx][2]
+
+
+        mask = langsam_results[0]["masks"][idx]
         mask_bool = mask.astype(bool)
 
         img_hsv[mask_bool, 0] = float(hue)
@@ -204,25 +204,25 @@ def change_image_objects_lab(
     )
     if not langsam_results:
         return image_pil
-
-    labels = langsam_results[0]["labels"]
+    
+    input_labels = [target[0] for target in targets_config]
+    output_labels = langsam_results[0]["labels"]
     scores = langsam_results[0]["scores"]
+
     img_array = np.array(image_pil)
     img_lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2Lab).astype(np.float32)
-    for target_spec in targets_config:
-        target_obj = target_spec[0]
-        new_a = target_spec[1]
-        new_b = target_spec[2]
 
-        try:
-            mask_idx = labels.index(target_obj)
-        except ValueError:
-            print(
-                f"Warning: Label '{target_obj}' not found in the image. Skipping this target."  # noqa: E501
-            )
+    for idx, label in enumerate(output_labels):
+        if not label or label == "":
+            print("Skipping empty label.")
             continue
+        input_label, score, _ = process.extractOne(label, input_labels)
+        input_label_idx = input_labels.index(input_label)
 
-        mask = langsam_results[0]["masks"][mask_idx]
+        new_a = targets_config[input_label_idx][1]
+        new_b = targets_config[input_label_idx][2]
+
+        mask = langsam_results[0]["masks"][idx]
         mask_bool = mask.astype(bool)
 
         img_lab[mask_bool, 1] = new_a
