@@ -30,7 +30,9 @@ image = (
             "TORCH_HOME": TORCH_HOME,
         }
     )
-    .apt_install("git")
+    .apt_install(
+        "git",
+    )
     .pip_install(
         "huggingface-hub",
         "hf_transfer",
@@ -38,7 +40,6 @@ image = (
         "numpy",
         "transformers",
         "opencv-contrib-python-headless",
-        "RapidFuzz",
         gpu="A10G",
     )
     .pip_install(
@@ -47,11 +48,10 @@ image = (
         index_url="https://download.pytorch.org/whl/cu124",
         gpu="A10G",
     )
-    .pip_install(
-        "git+https://github.com/luca-medeiros/lang-segment-anything.git",
-        gpu="A10G",
-    )
+    .pip_install("git+https://github.com/openai/CLIP.git", gpu="A10G")
+    .pip_install("git+https://github.com/facebookresearch/sam2.git", gpu="A10G")
 )
+
 
 @app.function(
     image=image,
@@ -70,13 +70,122 @@ def zeroshot_modal(
 
     Returns:
         list[dict]: List of dictionaries containing label and bounding box information.
-    """    
+    """
     from transformers import pipeline
-    checkpoint = "google/owlv2-base-patch16-ensemble"
-    detector = pipeline(model=checkpoint, task="zero-shot-object-detection")
+
+    checkpoint = "google/owlv2-large-patch14-ensemble"
+    detector = pipeline(
+        model=checkpoint,
+        task="zero-shot-object-detection",
+        device="cuda",
+    )
     # Load the image
     predictions = detector(
         image_pil,
         candidate_labels=labels,
     )
     return predictions
+
+
+# @app.function(
+#     image=image,
+#     gpu="A10G",
+#     volumes={volume_path: volume},
+# )
+# def fast_sam(
+#     image_pil: Image.Image,
+#     labels: str,
+# ) -> list[dict]:
+#     from fastsam import FastSAM, FastSAMPrompt
+
+#     model = FastSAM("./weights/FastSAM.pt")
+#     DEVICE = "cuda"
+#     everything_results = model(
+#         image_pil,
+#         device=DEVICE,
+#         retina_masks=True,
+#         imgsz=1024,
+#         conf=0.4,
+#         iou=0.9,
+#     )
+#     prompt_process = FastSAMPrompt(image_pil, everything_results, device=DEVICE)
+#     ann = prompt_process.text_prompt(text=labels)
+#     return ann
+
+
+@app.function(
+    image=image,
+    gpu="A10G",
+    volumes={volume_path: volume},
+)
+def clip(
+    image_pil: Image.Image,
+    prompts: list[str],
+) -> list[dict]:
+    from transformers import CLIPSegProcessor, CLIPSegForImageSegmentation
+    import torch
+
+    processor = CLIPSegProcessor.from_pretrained("CIDAS/clipseg-rd64-refined")
+    model = CLIPSegForImageSegmentation.from_pretrained("CIDAS/clipseg-rd64-refined")
+    inputs = processor(
+        text=prompts,
+        images=[image_pil] * len(prompts),
+        padding="max_length",
+        return_tensors="pt",
+    )
+    # predict
+    with torch.no_grad():
+        outputs = model(**inputs)
+    preds = outputs.logits.unsqueeze(1)
+
+    results = []
+
+    # Process each prediction to find bounding boxes in high probability regions
+    for i, prompt in enumerate(prompts):
+        # Apply sigmoid to get probability map
+        pred_tensor = torch.sigmoid(preds[i][0])
+        # Convert tensor to numpy array
+        pred_np = pred_tensor.cpu().numpy()
+
+        # Convert to uint8 for OpenCV processing
+        heatmap = (pred_np * 255).astype(np.uint8)
+
+        # Apply threshold to find high probability regions
+        # Adjust threshold value (currently 0.5 or 127/255) as needed
+        _, binary = cv2.threshold(heatmap, 127, 255, cv2.THRESH_BINARY)
+
+        # Find contours in thresholded image
+        contours, _ = cv2.findContours(
+            binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        # Process each contour to get bounding boxes
+        for contour in contours:
+            # Skip very small contours that might be noise
+            if cv2.contourArea(contour) < 100:  # Minimum area threshold
+                continue
+
+            # Get bounding box coordinates (x, y, width, height)
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # Calculate confidence score based on average probability in the region
+            mask = np.zeros_like(pred_np)
+            cv2.drawContours(mask, [contour], 0, 1, -1)
+            confidence = float(np.mean(pred_np[mask == 1]))
+
+            results.append(
+                {
+                    "label": prompt,
+                    "score": confidence,
+                    "box": {
+                        "xmin": int(x),
+                        "ymin": int(y),
+                        "xmax": int(x + w),
+                        "ymax": int(y + h),
+                    },
+                }
+            )
+
+    # Sort results by confidence score
+    results = sorted(results, key=lambda x: x["score"], reverse=True)
+    return results
