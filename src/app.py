@@ -145,21 +145,24 @@ remove_background_tool = gr.Interface(
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_6.jpg",
         ],
+        [
+            "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_8.jpg",
+        ],
     ],
 )
 
 demo = gr.TabbedInterface(
     [
-        change_color_objects_hsv_tool,
-        change_color_objects_lab_tool,
         privacy_preserve_tool,
         remove_background_tool,
+        change_color_objects_hsv_tool,
+        change_color_objects_lab_tool,
     ],
     [
-        "Change Color Objects HSV",
-        "Change Color Objects LAB",
         "Privacy Preserving Tool",
         "Remove Background Tool",
+        "Change Color Objects HSV",
+        "Change Color Objects LAB",
     ],
     title=title,
     theme=gr.themes.Default(
