@@ -1,7 +1,11 @@
 
 <div align="center">
+<a href="https://github.com/mahan-ym/ImageAlfred">
 <img src="./src/assets/icons/ImageAlfredIcon.png" alt="ImageAlfred" width=200 height=200>
 
+<span><img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white"></span>
+
+</a>
 <h1>Image Alfred</h1>
 
 ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline image processing workflows
@@ -12,16 +16,14 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 
 <a href=https://huggingface.co> <img src="src/assets/icons/hf-logo.svg" alt="huggingface" height=40> </a>
 <a href="https://www.python.org"><img src="src/assets/icons/python-logo-only.svg" alt="python" height=40></a>
-<!-- <a href="https://www.gradio.app" heigh=40><img src="src/assets/icons/gradio-color.svg"></a> -->
 </div>
 
-<!-- It provides a user-friendly interface for interacting with image models, leveraging the power of Gradio for the frontend and Modal for scalable backend deployment. -->
+## Demo
 
-<!-- ## Features
-- Intuitive web interface for image processing
-- Powered by Gradio for rapid prototyping and UI
-- Scalable and serverless execution with Modal
-- Easily extendable for custom image models and workflows -->
+<video width="640" height="360" controls>
+  <source src="src/assets/vid/demo.mov" type="video/quicktime">
+  Your browser does not support the video tag.
+</video>
 
 ## Maintainers
 
@@ -31,10 +33,11 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 
 ## Tools
 
-- [Gradio](https://www.gradio.app/): Serving user interface and MCP server
+- [Gradio](https://www.gradio.app/): Serving user interface and MCP server.
 - [Modal.com](https://modal.com/): AI infrastructure making all the magic 🔮 possible.
-- [SAM](https://segment-anything.com/): Segment Anything model by meta for image segmentation and mask generation
-- [CLIPSeg](https://github.com/timojl/clipseg): Image Segmentation using CLIP. We used it as a more precise object detection model
+- [SAM](https://segment-anything.com/): Segment Anything model by meta for image segmentation and mask generation.
+- [CLIPSeg](https://github.com/timojl/clipseg): Image Segmentation using CLIP. We used it as a more precise object detection model.
+- [OWLv2](https://huggingface.co/google/owlv2-large-patch14-ensemble): Zero-Shot object detection (Better performance in license plate detection and privacy preserving use-cases)
 - [HuggingFace](https://huggingface.co/): Downloading SAM and using Space for hosting.
 
 ## Getting Started
