@@ -52,16 +52,37 @@ image = (
 )
 
 
+@app.function(
+    image=image,
+    gpu="A10G",
+    volumes={volume_path: volume},
+)
+def prompt_segment(
+    image_pil: Image.Image,
+    prompts: list[str],
+) -> list[dict]:
+    clip_results = clip.remote(image_pil, prompts)
+
+    boxes = np.array(clip_results["boxes"])
+
+    sam_result_masks, sam_result_scores = sam2.remote(image_pil=image_pil, boxes=boxes)
+
+    results = {
+        "labels": clip_results["labels"],
+        "boxes": boxes,
+        "clip_scores": clip_results["scores"],
+        "sam_masking_scores": sam_result_scores,
+        "masks": sam_result_masks,
+    }
+    return results
+
 
 @app.function(
     image=image,
     gpu="A10G",
     volumes={volume_path: volume},
 )
-def sam2(
-    image_pil: Image.Image,
-    boxes: list[np.ndarray]
-) -> list[dict]:
+def sam2(image_pil: Image.Image, boxes: list[np.ndarray]) -> list[dict]:
     import torch
     from sam2.sam2_image_predictor import SAM2ImagePredictor
 
@@ -77,6 +98,7 @@ def sam2(
         )
     return masks, scores
 
+
 @app.function(
     image=image,
     gpu="A10G",
@@ -86,6 +108,14 @@ def clip(
     image_pil: Image.Image,
     prompts: list[str],
 ) -> list[dict]:
+    """
+    returns:
+        dict with keys each are lists:
+            - labels: str, the prompt used for the prediction
+            - scores: float, confidence score of the prediction
+            - boxes: np.array representing bounding box coordinates
+    """
+
     from transformers import CLIPSegProcessor, CLIPSegForImageSegmentation
     import torch
 
@@ -113,7 +143,9 @@ def clip(
     width_scale = orig_width / pred_width
     height_scale = orig_height / pred_height
 
-    results = []
+    labels = []
+    scores = []
+    boxes = []
 
     # Process each prediction to find bounding boxes in high probability regions
     for i, prompt in enumerate(prompts):
@@ -153,18 +185,117 @@ def clip(
             cv2.drawContours(mask, [contour], 0, 1, -1)
             confidence = float(np.mean(pred_np[mask == 1]))
 
-            results.append(
-                {
-                    "label": prompt,
-                    "score": confidence,
-                    "box": {
-                        "xmin": x_orig,
-                        "ymin": y_orig,
-                        "xmax": x_orig + w_orig,
-                        "ymax": y_orig + h_orig,
-                    },
-                }
+            labels.append(prompt)
+            scores.append(confidence)
+            boxes.append(
+                np.array(
+                    [
+                        x_orig,
+                        y_orig,
+                        x_orig + w_orig,
+                        y_orig + h_orig,
+                    ]
+                )
             )
 
-    results = sorted(results, key=lambda x: x["score"], reverse=True)
+    results = {
+        "labels": labels,
+        "scores": scores,
+        "boxes": boxes,
+    }
     return results
+
+
+@app.function(
+    gpu="T4",
+    image=image,
+    volumes={volume_path: volume},
+    timeout=60 * 3,
+)
+def change_image_objects_hsv(
+    image_pil: Image.Image,
+    targets_config: list[list[str | int | float]],
+) -> Image.Image:
+    if not isinstance(targets_config, list) or not all(
+        (
+            isinstance(target, list)
+            and len(target) == 4
+            and isinstance(target[0], str)
+            and isinstance(target[1], (int))
+            and isinstance(target[2], (int))
+            and isinstance(target[3], (int))
+            and target[1] >= 0
+            and target[1] <= 255
+            and target[2] >= 0
+            and target[2] <= 255
+            and target[3] >= 0
+            and target[3] <= 255
+        )
+        for target in targets_config
+    ):
+        raise ValueError(
+            "targets_config must be a list of lists, each containing [target_name, hue, saturation_scale]."  # noqa: E501
+        )
+    print("Change image objects hsv targets config:", targets_config)
+    prompts = [target[0].strip() for target in targets_config]
+
+    prompt_segment_results = prompt_segment.remote(image_pil=image_pil, prompts=prompts)
+    if not prompt_segment_results:
+        return image_pil
+
+    output_labels = prompt_segment_results["labels"]
+
+    img_array = np.array(image_pil)
+    img_hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
+
+    for idx, label in enumerate(output_labels):
+        if not label or label == "":
+            print("Skipping empty label.")
+            continue
+        if label not in prompts:
+            print(f"Label '{label}' not found in prompts. Skipping.")
+            continue
+        input_label_idx = prompts.index(label)
+        target_rgb = targets_config[input_label_idx][1:]
+        target_hsv = cv2.cvtColor(np.uint8([[target_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
+
+        mask = prompt_segment_results["masks"][idx][0].astype(bool)
+        h, s, v = cv2.split(img_hsv)
+        # Convert all channels to float32 for consistent processing
+        h = h.astype(np.float32)
+        s = s.astype(np.float32)
+        v = v.astype(np.float32)
+
+        # Compute original S and V means inside the mask
+        mean_s = np.mean(s[mask])
+        mean_v = np.mean(v[mask])
+
+        # Target S and V
+        target_hue, target_s, target_v = target_hsv
+
+        # Compute scaling factors (avoid div by zero)
+        scale_s = target_s / mean_s if mean_s > 0 else 1.0
+        scale_v = target_v / mean_v if mean_v > 0 else 1.0
+
+        scale_s = np.clip(scale_s, 0.8, 1.2)
+        scale_v = np.clip(scale_v, 0.8, 1.2)
+
+        # Apply changes only in mask
+        h[mask] = target_hue
+        s = s.astype(np.float32)
+        v = v.astype(np.float32)
+        s[mask] = np.clip(s[mask] * scale_s, 0, 255)
+        v[mask] = np.clip(v[mask] * scale_v, 0, 255)
+
+        # Merge and convert back
+        img_hsv = cv2.merge(
+            [
+                h.astype(np.uint8),
+                s.astype(np.uint8),
+                v.astype(np.uint8),
+            ]
+        )
+
+    output_img = cv2.cvtColor(img_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
+    output_img_pil = Image.fromarray(output_img)
+    return output_img_pil
