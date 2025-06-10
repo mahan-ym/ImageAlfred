@@ -39,6 +39,7 @@ image = (
         "numpy",
         "transformers",
         "opencv-contrib-python-headless",
+        "scipy",
         gpu="A10G",
     )
     .pip_install(
@@ -95,10 +96,50 @@ def prompt_segment(
     }
     return results
 
-
 @app.function(
     image=image,
     gpu="A10G",
+    volumes={volume_path: volume},
+    timeout=60 * 3,
+)
+def privacy_prompt_segment(
+    image_pil: Image.Image,
+    prompts: list[str],
+    threshold: float,
+) -> list[dict]:
+    owlv2_results = owlv2.remote(image_pil, prompts, threshold=threshold)
+
+    if not owlv2_results:
+        print("No boxes returned from OWLV2.")
+        return None
+
+    boxes = np.array(owlv2_results["boxes"])
+
+    sam_result_masks, sam_result_scores = sam2.remote(image_pil=image_pil, boxes=boxes)
+
+    print(f"sam_result_mask {sam_result_masks}")
+
+    if not sam_result_masks.any():
+        print("No masks or scores returned from SAM2.")
+        return None
+
+    if sam_result_masks.ndim == 3:
+        # If the masks are in 3D, we need to convert them to 4D
+        sam_result_masks = [sam_result_masks]
+
+    results = {
+        "labels": owlv2_results["labels"],
+        "boxes": boxes,
+        "owlv2_scores": owlv2_results["scores"],
+        "sam_masking_scores": sam_result_scores,
+        "masks": sam_result_masks,
+    }
+    return results
+
+    
+@app.function(
+    image=image,
+    gpu="A100",
     volumes={volume_path: volume},
     timeout=60 * 3,
 )
@@ -117,6 +158,55 @@ def sam2(image_pil: Image.Image, boxes: list[np.ndarray]) -> list[dict]:
             multimask_output=False,
         )
     return masks, scores
+
+
+@app.function(
+    image=image,
+    gpu="A100",
+    volumes={volume_path: volume},
+)
+def owlv2(
+    image_pil: Image.Image,
+    labels: list[str],
+    threshold: float,
+) -> list[dict]:
+    """
+    Perform zero-shot segmentation on an image using specified labels.
+    Args:
+        image_pil (Image.Image): The input image as a PIL Image.
+        labels (list[str]): List of labels for zero-shot segmentation.
+
+    Returns:
+        list[dict]: List of dictionaries containing label and bounding box information.
+    """
+    from transformers import pipeline
+
+    checkpoint = "google/owlv2-large-patch14-ensemble"
+    detector = pipeline(
+        model=checkpoint,
+        task="zero-shot-object-detection",
+        device="cuda",
+        use_fast=True,
+    )
+    # Load the image
+    predictions = detector(
+        image_pil,
+        candidate_labels=labels,
+    )
+    labels = []
+    scores = []
+    boxes = []
+    for prediction in predictions:
+        if prediction["score"] < threshold:
+            continue
+        labels.append(prediction["label"])
+        scores.append(prediction["score"])
+        boxes.append(np.array(list(prediction["box"].values())))
+    if labels == []:
+        print("No predictions found with score above threshold.")
+        return None
+    predictions = {"labels": labels, "scores": scores, "boxes": boxes}
+    return predictions
 
 
 @app.function(
@@ -441,6 +531,7 @@ def preserve_privacy(
     image_pil: Image.Image,
     prompts: str,
     privacy_strength: int = 15,
+    threshold: float = 0.2,
 ) -> Image.Image:
     """
     Preserves privacy in an image by applying a mosaic effect to specified objects.
@@ -449,9 +540,10 @@ def preserve_privacy(
     if isinstance(prompts, str):
         prompts = [prompt.strip() for prompt in prompts.split(".")]
         print(f"Parsed prompts: {prompts}")
-    prompt_segment_results = prompt_segment.remote(
+    prompt_segment_results = privacy_prompt_segment.remote(
         image_pil=image_pil,
         prompts=prompts,
+        threshold=threshold,
     )
     if not prompt_segment_results:
         return image_pil

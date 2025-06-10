@@ -42,6 +42,7 @@ def privacy_preserve_image(
     input_img,
     input_prompt,
     privacy_strength: int = 15,
+    threshold: float = 0.2,
 ) -> np.ndarray | Image.Image | str | Path | None:
     """
     Obscures specified objects in the input image based on a natural language prompt, using a privacy-preserving blur or distortion effect.
@@ -53,6 +54,7 @@ def privacy_preserve_image(
         input_img: Input image or can be URL string of the image or base64 string. Cannot be None.
         input_prompt (str): Object to obscure in the image. It can be a single word or multiple words, e.g., "left person face", "license plate".
         privacy_strength (int): Strength of the privacy preservation effect. Higher values result in stronger blurring. Default is 15.
+        threshold (float): Model threshold for detecting objects. It should be between 0.01 and 0.99. Default is 0.2. for detecting smaller objects, small regions or faces a lower threshold is recommended.
     Returns:
         bytes: Binary image data of the modified image.
 
@@ -63,12 +65,15 @@ def privacy_preserve_image(
         raise gr.Error("Input image cannot be None or empty.")
     if not input_prompt or input_prompt.strip() == "":
         raise gr.Error("Input prompt cannot be None or empty.")
+    if threshold < 0.01 or threshold > 0.99:
+        raise gr.Error("Threshold must be between 0.01 and 0.99.")
 
     func = modal.Function.from_name(modal_app_name, "preserve_privacy")
     output_pil = func.remote(
         image_pil=input_img,
         prompts=input_prompt,
         privacy_strength=privacy_strength,
+        threshold=threshold,
     )
 
     if output_pil is None:

@@ -107,6 +107,14 @@ privacy_preserve_tool = gr.Interface(
             step=1,
             info="Higher values result in stronger blurring.",
         ),
+        gr.Slider(
+            label="Detection Threshold",
+            minimum=0.01,
+            maximum=0.99,
+            value=0.2,
+            step=0.01,
+            info="Model threshold for detecting objects.",
+        ),
     ],
     outputs=gr.Image(label="Output Image"),
     title="Privacy Preserving Tool",
@@ -114,18 +122,21 @@ privacy_preserve_tool = gr.Interface(
     examples=[
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_3.jpg",
-            "license plate.",
+            "license plate",
             10,
+            0.5,
         ],
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_8.jpg",
-            "face.",
+            "face",
             15,
+            0.1,
         ],
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_6.jpg",
-            "face.",
+            "face",
             20,
+            0.1,
         ],
     ],
 )
