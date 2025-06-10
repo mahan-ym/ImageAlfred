@@ -20,7 +20,7 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 
 ## Demo
 
-[🎬 Video demo](https://youtu.be/tEov-Bcuulk)
+[![ImageAlfred Demo](https://img.youtube.com/vi/tEov-Bcuulk/0.jpg)](https://youtu.be/tEov-Bcuulk)
 
 ## Maintainers
 
