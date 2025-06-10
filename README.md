@@ -20,10 +20,7 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 
 ## Demo
 
-<video width="640" height="360" controls>
-  <source src="src/assets/vid/demo.mov" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[🎬 Video demo](https://youtu.be/tEov-Bcuulk)
 
 ## Maintainers
 
