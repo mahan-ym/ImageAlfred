@@ -31,7 +31,7 @@ lab_df_input = gr.Dataframe(
     headers=["Object", "New A", "New B"],
     datatype=["str", "number", "number"],
     col_count=(3, "fixed"),
-    label="Target Objects and New Settings",  # todo add description about LAB color space
+    label="Target Objects and New Settings.(0-255 -- 128 = Neutral)",
     type="array",
 )
 
@@ -75,18 +75,18 @@ change_color_objects_lab_tool = gr.Interface(
     Recolor an image based on user input using the LAB color space.
     You can specify the new A and new B values for each object.
     """,  # noqa: E501
-    examples=[  # todo change examples
+    examples=[
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_1.jpg",
-            [["pants", 128, 1]],
+            [["pants", 112, 128]],
         ],
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_4.jpg",
-            [["desk", 15, 0.5], ["left cup", 40, 1.1]],
+            [["desk", 166, 193]],
         ],
         [
             "https://raw.githubusercontent.com/mahan-ym/ImageAlfred/main/src/assets/examples/test_5.jpg",
-            [["suits", 60, 1.5], ["pants", 10, 0.8]],
+            [["suits coat", 110, 133]],
         ],
     ],
 )
