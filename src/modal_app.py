@@ -5,7 +5,6 @@ import cv2
 import modal
 import numpy as np
 from PIL import Image
-from rapidfuzz import process
 
 app = modal.App("ImageAlfred")
 
@@ -30,14 +29,16 @@ image = (
             "TORCH_HOME": TORCH_HOME,
         }
     )
-    .apt_install("git")
+    .apt_install(
+        "git",
+    )
     .pip_install(
         "huggingface-hub",
         "hf_transfer",
         "Pillow",
         "numpy",
+        "transformers",
         "opencv-contrib-python-headless",
-        "RapidFuzz",
         gpu="A10G",
     )
     .pip_install(
@@ -46,10 +47,8 @@ image = (
         index_url="https://download.pytorch.org/whl/cu124",
         gpu="A10G",
     )
-    .pip_install(
-        "git+https://github.com/luca-medeiros/lang-segment-anything.git",
-        gpu="A10G",
-    )
+    .pip_install("git+https://github.com/openai/CLIP.git", gpu="A10G")
+    .pip_install("git+https://github.com/facebookresearch/sam2.git", gpu="A10G")
     .pip_install(
         "git+https://github.com/PramaLLC/BEN2.git#egg=ben2",
         gpu="A10G",
@@ -58,43 +57,180 @@ image = (
 
 
 @app.function(
-    gpu="A10G",
     image=image,
+    gpu="A10G",
     volumes={volume_path: volume},
-    # min_containers=1,
     timeout=60 * 3,
 )
-def lang_sam_segment(
+def prompt_segment(
     image_pil: Image.Image,
-    prompt: str,
-    box_threshold=0.3,
-    text_threshold=0.25,
-) -> list:
-    """Segments an image using LangSAM based on a text prompt.
-    This function uses LangSAM to segment objects in the image based on the provided prompt.
-    """  # noqa: E501
-    from lang_sam import LangSAM  # type: ignore
+    prompts: list[str],
+) -> list[dict]:
+    clip_results = clip.remote(image_pil, prompts)
 
-    model = LangSAM(sam_type="sam2.1_hiera_large")
-    langsam_results = model.predict(
-        images_pil=[image_pil],
-        texts_prompt=[prompt],
-        box_threshold=box_threshold,
-        text_threshold=text_threshold,
-    )
-    if len(langsam_results[0]["labels"]) == 0:
-        print("No masks found for the given prompt.")
+    if not clip_results:
+        print("No boxes returned from CLIP.")
         return None
 
-    print(f"found {len(langsam_results[0]['labels'])} masks for prompt: {prompt}")
-    print("labels:", langsam_results[0]["labels"])
-    print("scores:", langsam_results[0]["scores"])
-    print(
-        "masks scores:",
-        langsam_results[0].get("mask_scores", "No mask scores available"),
-    )  # noqa: E501
+    boxes = np.array(clip_results["boxes"])
 
-    return langsam_results
+    sam_result_masks, sam_result_scores = sam2.remote(image_pil=image_pil, boxes=boxes)
+
+    print(f"sam_result_mask {sam_result_masks}")
+
+    if not sam_result_masks.any():
+        print("No masks or scores returned from SAM2.")
+        return None
+
+    if sam_result_masks.ndim == 3:
+        # If the masks are in 3D, we need to convert them to 4D
+        sam_result_masks = [sam_result_masks]
+
+    results = {
+        "labels": clip_results["labels"],
+        "boxes": boxes,
+        "clip_scores": clip_results["scores"],
+        "sam_masking_scores": sam_result_scores,
+        "masks": sam_result_masks,
+    }
+    return results
+
+
+@app.function(
+    image=image,
+    gpu="A10G",
+    volumes={volume_path: volume},
+    timeout=60 * 3,
+)
+def sam2(image_pil: Image.Image, boxes: list[np.ndarray]) -> list[dict]:
+    import torch
+    from sam2.sam2_image_predictor import SAM2ImagePredictor
+
+    predictor = SAM2ImagePredictor.from_pretrained("facebook/sam2-hiera-large")
+
+    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        predictor.set_image(image_pil)
+        masks, scores, _ = predictor.predict(
+            point_coords=None,
+            point_labels=None,
+            box=boxes,
+            multimask_output=False,
+        )
+    return masks, scores
+
+
+@app.function(
+    image=image,
+    gpu="A10G",
+    volumes={volume_path: volume},
+    timeout=60 * 3,
+)
+def clip(
+    image_pil: Image.Image,
+    prompts: list[str],
+) -> list[dict]:
+    """
+    returns:
+        dict with keys each are lists:
+            - labels: str, the prompt used for the prediction
+            - scores: float, confidence score of the prediction
+            - boxes: np.array representing bounding box coordinates
+    """
+
+    from transformers import CLIPSegProcessor, CLIPSegForImageSegmentation
+    import torch
+
+    processor = CLIPSegProcessor.from_pretrained(
+        "CIDAS/clipseg-rd64-refined",
+        use_fast=True,
+    )
+    model = CLIPSegForImageSegmentation.from_pretrained("CIDAS/clipseg-rd64-refined")
+
+    # Get original image dimensions
+    orig_width, orig_height = image_pil.size
+
+    inputs = processor(
+        text=prompts,
+        images=[image_pil] * len(prompts),
+        padding="max_length",
+        return_tensors="pt",
+    )
+    # predict
+    with torch.no_grad():
+        outputs = model(**inputs)
+    preds = outputs.logits.unsqueeze(1)
+
+    # Get the dimensions of the prediction output
+    pred_height, pred_width = preds.shape[-2:]
+
+    # Calculate scaling factors
+    width_scale = orig_width / pred_width
+    height_scale = orig_height / pred_height
+
+    labels = []
+    scores = []
+    boxes = []
+
+    # Process each prediction to find bounding boxes in high probability regions
+    for i, prompt in enumerate(prompts):
+        # Apply sigmoid to get probability map
+        pred_tensor = torch.sigmoid(preds[i][0])
+        # Convert tensor to numpy array
+        pred_np = pred_tensor.cpu().numpy()
+
+        # Convert to uint8 for OpenCV processing
+        heatmap = (pred_np * 255).astype(np.uint8)
+
+        # Apply threshold to find high probability regions
+        _, binary = cv2.threshold(heatmap, 127, 255, cv2.THRESH_BINARY)
+
+        # Find contours in thresholded image
+        contours, _ = cv2.findContours(
+            binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        # Process each contour to get bounding boxes
+        for contour in contours:
+            # Skip very small contours that might be noise
+            if cv2.contourArea(contour) < 100:  # Minimum area threshold
+                continue
+
+            # Get bounding box coordinates in prediction space
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # Scale coordinates to original image dimensions
+            x_orig = int(x * width_scale)
+            y_orig = int(y * height_scale)
+            w_orig = int(w * width_scale)
+            h_orig = int(h * height_scale)
+
+            # Calculate confidence score based on average probability in the region
+            mask = np.zeros_like(pred_np)
+            cv2.drawContours(mask, [contour], 0, 1, -1)
+            confidence = float(np.mean(pred_np[mask == 1]))
+
+            labels.append(prompt)
+            scores.append(confidence)
+            boxes.append(
+                np.array(
+                    [
+                        x_orig,
+                        y_orig,
+                        x_orig + w_orig,
+                        y_orig + h_orig,
+                    ]
+                )
+            )
+
+    if labels == []:
+        return None
+
+    results = {
+        "labels": labels,
+        "scores": scores,
+        "boxes": boxes,
+    }
+    return results
 
 
 @app.function(
@@ -128,14 +264,16 @@ def change_image_objects_hsv(
             "targets_config must be a list of lists, each containing [target_name, hue, saturation_scale]."  # noqa: E501
         )
     print("Change image objects hsv targets config:", targets_config)
-    prompts = ". ".join(target[0] for target in targets_config)
+    prompts = [target[0].strip() for target in targets_config]
 
-    langsam_results = lang_sam_segment.remote(image_pil=image_pil, prompt=prompts)
-    if not langsam_results:
+    prompt_segment_results = prompt_segment.remote(
+        image_pil=image_pil,
+        prompts=prompts,
+    )
+    if not prompt_segment_results:
         return image_pil
-    input_labels = [target[0] for target in targets_config]
-    output_labels = langsam_results[0]["labels"]
-    scores = langsam_results[0]["scores"]
+
+    output_labels = prompt_segment_results["labels"]
 
     img_array = np.array(image_pil)
     img_hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
@@ -144,13 +282,14 @@ def change_image_objects_hsv(
         if not label or label == "":
             print("Skipping empty label.")
             continue
-        input_label, score, _ = process.extractOne(label, input_labels)
-        input_label_idx = input_labels.index(input_label)
-
+        if label not in prompts:
+            print(f"Label '{label}' not found in prompts. Skipping.")
+            continue
+        input_label_idx = prompts.index(label)
         target_rgb = targets_config[input_label_idx][1:]
         target_hsv = cv2.cvtColor(np.uint8([[target_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
 
-        mask = langsam_results[0]["masks"][idx].astype(bool)
+        mask = prompt_segment_results["masks"][idx][0].astype(bool)
         h, s, v = cv2.split(img_hsv)
         # Convert all channels to float32 for consistent processing
         h = h.astype(np.float32)
@@ -168,7 +307,7 @@ def change_image_objects_hsv(
         scale_s = target_s / mean_s if mean_s > 0 else 1.0
         scale_v = target_v / mean_v if mean_v > 0 else 1.0
 
-        scale_s = np.clip(scale_s, 0.8, 1.2)  
+        scale_s = np.clip(scale_s, 0.8, 1.2)
         scale_v = np.clip(scale_v, 0.8, 1.2)
 
         # Apply changes only in mask
@@ -224,18 +363,16 @@ def change_image_objects_lab(
 
     print("change image objects lab targets config:", targets_config)
 
-    prompts = ". ".join(target[0] for target in targets_config)
+    prompts = [target[0].strip() for target in targets_config]
 
-    langsam_results = lang_sam_segment.remote(
+    prompt_segment_results = prompt_segment.remote(
         image_pil=image_pil,
-        prompt=prompts,
+        prompts=prompts,
     )
-    if not langsam_results:
+    if not prompt_segment_results:
         return image_pil
 
-    input_labels = [target[0] for target in targets_config]
-    output_labels = langsam_results[0]["labels"]
-    scores = langsam_results[0]["scores"]
+    output_labels = prompt_segment_results["labels"]
 
     img_array = np.array(image_pil)
     img_lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2Lab).astype(np.float32)
@@ -244,13 +381,17 @@ def change_image_objects_lab(
         if not label or label == "":
             print("Skipping empty label.")
             continue
-        input_label, score, _ = process.extractOne(label, input_labels)
-        input_label_idx = input_labels.index(input_label)
+
+        if label not in prompts:
+            print(f"Label '{label}' not found in prompts. Skipping.")
+            continue
+
+        input_label_idx = prompts.index(label)
 
         new_a = targets_config[input_label_idx][1]
         new_b = targets_config[input_label_idx][2]
 
-        mask = langsam_results[0]["masks"][idx]
+        mask = prompt_segment_results["masks"][idx][0]
         mask_bool = mask.astype(bool)
 
         img_lab[mask_bool, 1] = new_a
@@ -298,64 +439,46 @@ def apply_mosaic_with_bool_mask(
 )
 def preserve_privacy(
     image_pil: Image.Image,
-    prompt: str,
+    prompts: str,
     privacy_strength: int = 15,
 ) -> Image.Image:
     """
     Preserves privacy in an image by applying a mosaic effect to specified objects.
     """
-    print(f"Preserving privacy for prompt: {prompt} with strength {privacy_strength}")
-
-    langsam_results = lang_sam_segment.remote(
+    print(f"Preserving privacy for prompt: {prompts} with strength {privacy_strength}")
+    if isinstance(prompts, str):
+        prompts = [prompt.strip() for prompt in prompts.split(".")]
+        print(f"Parsed prompts: {prompts}")
+    prompt_segment_results = prompt_segment.remote(
         image_pil=image_pil,
-        prompt=prompt,
-        box_threshold=0.35,
-        text_threshold=0.40,
+        prompts=prompts,
     )
-    if not langsam_results:
+    if not prompt_segment_results:
         return image_pil
 
     img_array = np.array(image_pil)
 
-    for result in langsam_results:
-        print(f"result: {result}")
+    for i, mask in enumerate(prompt_segment_results["masks"]):
+        mask_bool = mask[0].astype(bool)
 
-        for i, mask in enumerate(result["masks"]):
-            if "mask_scores" in result:
-                if (
-                    hasattr(result["mask_scores"], "shape")
-                    and result["mask_scores"].ndim > 0
-                ):
-                    mask_score = result["mask_scores"][i]
-                else:
-                    mask_score = result["mask_scores"]
-            if mask_score < 0.6:
-                print(f"Skipping mask {i + 1}/{len(result['masks'])} -> low score.")
-                continue
-            print(
-                f"Processing mask {i + 1}/{len(result['masks'])} Mask score: {mask_score}"  # noqa: E501
-            )
+        # Create kernel for morphological operations
+        kernel_size = 100
+        kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
-            mask_bool = mask.astype(bool)
+        # Convert bool mask to uint8 for OpenCV operations
+        mask_uint8 = mask_bool.astype(np.uint8) * 255
 
-            # Create kernel for morphological operations
-            kernel_size = 100
-            kernel = np.ones((kernel_size, kernel_size), np.uint8)
+        # Apply dilation to slightly expand the mask area
+        mask_uint8 = cv2.dilate(mask_uint8, kernel, iterations=2)
+        # Optional: Apply erosion again to refine the mask
+        mask_uint8 = cv2.erode(mask_uint8, kernel, iterations=2)
 
-            # Convert bool mask to uint8 for OpenCV operations
-            mask_uint8 = mask_bool.astype(np.uint8) * 255
+        # Convert back to boolean mask
+        mask_bool = mask_uint8 > 127
 
-            # Apply dilation to slightly expand the mask area
-            mask_uint8 = cv2.dilate(mask_uint8, kernel, iterations=2)
-            # Optional: Apply erosion again to refine the mask
-            mask_uint8 = cv2.erode(mask_uint8, kernel, iterations=2)
-
-            # Convert back to boolean mask
-            mask_bool = mask_uint8 > 127
-
-            img_array = apply_mosaic_with_bool_mask.remote(
-                img_array, mask_bool, privacy_strength
-            )
+        img_array = apply_mosaic_with_bool_mask.remote(
+            img_array, mask_bool, privacy_strength
+        )
 
     output_image_pil = Image.fromarray(img_array)
 

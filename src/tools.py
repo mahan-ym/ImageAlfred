@@ -23,7 +23,7 @@ def remove_background(
     if not input_img:
         raise gr.Error("Input image cannot be None or empty.")
 
-    func = modal.Function.from_name("ImageAlfred", "remove_background")
+    func = modal.Function.from_name(modal_app_name, "remove_background")
     output_pil = func.remote(
         image_pil=input_img,
     )
@@ -67,10 +67,10 @@ def privacy_preserve_image(
     if not valid_pattern.match(input_prompt):
         raise gr.Error("Input prompt must contain only letters, spaces, and dots.")
 
-    func = modal.Function.from_name("ImageAlfred", "preserve_privacy")
+    func = modal.Function.from_name(modal_app_name, "preserve_privacy")
     output_pil = func.remote(
         image_pil=input_img,
-        prompt=input_prompt,
+        prompts=input_prompt,
         privacy_strength=privacy_strength,
     )
 
@@ -136,14 +136,14 @@ def change_color_objects_hsv(
             raise gr.Error("Red must be an integer.")
         if item[1] < 0 or item[1] > 255:
             raise gr.Error("Red must be in the range [0, 255]")
-        
+
         try:
             item[2] = int(item[2])
         except ValueError:
             raise gr.Error("Green must be an integer.")
         if item[2] < 0 or item[2] > 255:
             raise gr.Error("Green must be in the range [0, 255]")
-        
+
         try:
             item[3] = int(item[3])
         except ValueError:
@@ -153,7 +153,7 @@ def change_color_objects_hsv(
 
     print("after processing input:", user_input)
 
-    func = modal.Function.from_name("ImageAlfred", "change_image_objects_hsv")
+    func = modal.Function.from_name(modal_app_name, "change_image_objects_hsv")
     output_pil = func.remote(image_pil=input_img, targets_config=user_input)
 
     if output_pil is None:
@@ -248,7 +248,7 @@ def change_color_objects_lab(
                 raise gr.Error("new B must be in the range [0, 255]")
 
     print("after processing input:", user_input)
-    func = modal.Function.from_name("ImageAlfred", "change_image_objects_lab")
+    func = modal.Function.from_name(modal_app_name, "change_image_objects_lab")
     output_pil = func.remote(image_pil=input_img, targets_config=user_input)
     if output_pil is None:
         raise ValueError("Received None from modal remote function.")
