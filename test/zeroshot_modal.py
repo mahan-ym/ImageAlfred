@@ -5,7 +5,6 @@ import cv2
 import modal
 import numpy as np
 from PIL import Image
-from rapidfuzz import process
 
 app = modal.App("zeroshot-test")
 
@@ -53,65 +52,30 @@ image = (
 )
 
 
+
 @app.function(
     image=image,
     gpu="A10G",
     volumes={volume_path: volume},
 )
-def zeroshot_modal(
+def sam2(
     image_pil: Image.Image,
-    labels: list[str],
+    boxes: list[np.ndarray]
 ) -> list[dict]:
-    """
-    Perform zero-shot segmentation on an image using specified labels.
-    Args:
-        image_pil (Image.Image): The input image as a PIL Image.
-        labels (list[str]): List of labels for zero-shot segmentation.
+    import torch
+    from sam2.sam2_image_predictor import SAM2ImagePredictor
 
-    Returns:
-        list[dict]: List of dictionaries containing label and bounding box information.
-    """
-    from transformers import pipeline
+    predictor = SAM2ImagePredictor.from_pretrained("facebook/sam2-hiera-large")
 
-    checkpoint = "google/owlv2-large-patch14-ensemble"
-    detector = pipeline(
-        model=checkpoint,
-        task="zero-shot-object-detection",
-        device="cuda",
-    )
-    # Load the image
-    predictions = detector(
-        image_pil,
-        candidate_labels=labels,
-    )
-    return predictions
-
-
-# @app.function(
-#     image=image,
-#     gpu="A10G",
-#     volumes={volume_path: volume},
-# )
-# def fast_sam(
-#     image_pil: Image.Image,
-#     labels: str,
-# ) -> list[dict]:
-#     from fastsam import FastSAM, FastSAMPrompt
-
-#     model = FastSAM("./weights/FastSAM.pt")
-#     DEVICE = "cuda"
-#     everything_results = model(
-#         image_pil,
-#         device=DEVICE,
-#         retina_masks=True,
-#         imgsz=1024,
-#         conf=0.4,
-#         iou=0.9,
-#     )
-#     prompt_process = FastSAMPrompt(image_pil, everything_results, device=DEVICE)
-#     ann = prompt_process.text_prompt(text=labels)
-#     return ann
-
+    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        predictor.set_image(image_pil)
+        masks, scores, _ = predictor.predict(
+            point_coords=None,
+            point_labels=None,
+            box=boxes,
+            multimask_output=False,
+        )
+    return masks, scores
 
 @app.function(
     image=image,
@@ -127,6 +91,10 @@ def clip(
 
     processor = CLIPSegProcessor.from_pretrained("CIDAS/clipseg-rd64-refined")
     model = CLIPSegForImageSegmentation.from_pretrained("CIDAS/clipseg-rd64-refined")
+
+    # Get original image dimensions
+    orig_width, orig_height = image_pil.size
+
     inputs = processor(
         text=prompts,
         images=[image_pil] * len(prompts),
@@ -137,6 +105,13 @@ def clip(
     with torch.no_grad():
         outputs = model(**inputs)
     preds = outputs.logits.unsqueeze(1)
+
+    # Get the dimensions of the prediction output
+    pred_height, pred_width = preds.shape[-2:]
+
+    # Calculate scaling factors
+    width_scale = orig_width / pred_width
+    height_scale = orig_height / pred_height
 
     results = []
 
@@ -151,7 +126,6 @@ def clip(
         heatmap = (pred_np * 255).astype(np.uint8)
 
         # Apply threshold to find high probability regions
-        # Adjust threshold value (currently 0.5 or 127/255) as needed
         _, binary = cv2.threshold(heatmap, 127, 255, cv2.THRESH_BINARY)
 
         # Find contours in thresholded image
@@ -165,8 +139,14 @@ def clip(
             if cv2.contourArea(contour) < 100:  # Minimum area threshold
                 continue
 
-            # Get bounding box coordinates (x, y, width, height)
+            # Get bounding box coordinates in prediction space
             x, y, w, h = cv2.boundingRect(contour)
+
+            # Scale coordinates to original image dimensions
+            x_orig = int(x * width_scale)
+            y_orig = int(y * height_scale)
+            w_orig = int(w * width_scale)
+            h_orig = int(h * height_scale)
 
             # Calculate confidence score based on average probability in the region
             mask = np.zeros_like(pred_np)
@@ -178,14 +158,13 @@ def clip(
                     "label": prompt,
                     "score": confidence,
                     "box": {
-                        "xmin": int(x),
-                        "ymin": int(y),
-                        "xmax": int(x + w),
-                        "ymax": int(y + h),
+                        "xmin": x_orig,
+                        "ymin": y_orig,
+                        "xmax": x_orig + w_orig,
+                        "ymax": y_orig + h_orig,
                     },
                 }
             )
 
-    # Sort results by confidence score
     results = sorted(results, key=lambda x: x["score"], reverse=True)
     return results
