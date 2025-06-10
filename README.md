@@ -2,7 +2,7 @@
 <div align="center">
 <img src="./src/assets/icons/ImageAlfredIcon.png" alt="ImageAlfred" width=200 height=200>
 
-<h2>Image Alfred</h2>
+<h1>Image Alfred</h1>
 
 ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline image processing workflows
 
@@ -25,16 +25,17 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 
 ## Maintainers
 
-[Mahan Yarmohammad (Mahan-ym)](https://www.mahan-ym.com/)
+[Mahan-ym | Mahan Yarmohammad](https://www.mahan-ym.com/)
 
 [Soodoo | Saaed Saadatipour](https://soodoo.me/)
 
-# Used Tools
+## Tools
 
 - [Gradio](https://www.gradio.app/): Serving user interface and MCP server
-- [lang-segment-anything](https://github.com/luca-medeiros/lang-segment-anything): Which uses [SAM](https://segment-anything.com/) and [Grounding Dino](https://github.com/IDEA-Research/GroundingDINO) under the hood to segment images.
+- [Modal.com](https://modal.com/): AI infrastructure making all the magic 🔮 possible.
+- [SAM](https://segment-anything.com/): Segment Anything model by meta for image segmentation and mask generation
+- [CLIPSeg](https://github.com/timojl/clipseg): Image Segmentation using CLIP. We used it as a more precise object detection model
 - [HuggingFace](https://huggingface.co/): Downloading SAM and using Space for hosting.
-- [Modal.com](https://modal.com/): AI infrastructure making all the magic possible.
 
 ## Getting Started
 

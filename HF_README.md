@@ -1,6 +1,8 @@
 ---
 title: ImageAlfred
 emoji: 😻
+tags:
+  - mcp-server-track
 colorFrom: green
 colorTo: purple
 sdk: gradio
