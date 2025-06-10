@@ -96,6 +96,7 @@ def prompt_segment(
     }
     return results
 
+
 @app.function(
     image=image,
     gpu="A10G",
@@ -136,7 +137,7 @@ def privacy_prompt_segment(
     }
     return results
 
-    
+
 @app.function(
     image=image,
     gpu="A100",
@@ -211,7 +212,7 @@ def owlv2(
 
 @app.function(
     image=image,
-    gpu="A10G",
+    gpu="A100",
     volumes={volume_path: volume},
     timeout=60 * 3,
 )
@@ -324,7 +325,7 @@ def clip(
 
 
 @app.function(
-    gpu="T4",
+    gpu="A10G",
     image=image,
     volumes={volume_path: volume},
     timeout=60 * 3,
@@ -422,7 +423,7 @@ def change_image_objects_hsv(
 
 
 @app.function(
-    gpu="T4",
+    gpu="A10G",
     image=image,
     volumes={volume_path: volume},
     timeout=60 * 3,
@@ -494,7 +495,7 @@ def change_image_objects_lab(
 
 
 @app.function(
-    gpu="T4",
+    gpu="A10G",
     image=image,
     volumes={volume_path: volume},
     timeout=60 * 3,
@@ -522,7 +523,7 @@ def apply_mosaic_with_bool_mask(
 
 
 @app.function(
-    gpu="T4",
+    gpu="A10G",
     image=image,
     volumes={volume_path: volume},
     timeout=60 * 3,
