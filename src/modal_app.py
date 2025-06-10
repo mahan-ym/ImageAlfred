@@ -59,9 +59,9 @@ image = (
 
 @app.function(
     image=image,
-    gpu="A10G",
+    gpu="A100",
     volumes={volume_path: volume},
-    timeout=60 * 3,
+    timeout=60 * 4,
 )
 def prompt_segment(
     image_pil: Image.Image,
@@ -99,9 +99,9 @@ def prompt_segment(
 
 @app.function(
     image=image,
-    gpu="A10G",
+    gpu="A100",
     volumes={volume_path: volume},
-    timeout=60 * 3,
+    timeout=60 * 4,
 )
 def privacy_prompt_segment(
     image_pil: Image.Image,
@@ -142,7 +142,7 @@ def privacy_prompt_segment(
     image=image,
     gpu="A100",
     volumes={volume_path: volume},
-    timeout=60 * 3,
+    timeout=60 * 4,
 )
 def sam2(image_pil: Image.Image, boxes: list[np.ndarray]) -> list[dict]:
     import torch
@@ -165,6 +165,7 @@ def sam2(image_pil: Image.Image, boxes: list[np.ndarray]) -> list[dict]:
     image=image,
     gpu="A100",
     volumes={volume_path: volume},
+    timeout=60 * 4,
 )
 def owlv2(
     image_pil: Image.Image,
@@ -214,7 +215,7 @@ def owlv2(
     image=image,
     gpu="A100",
     volumes={volume_path: volume},
-    timeout=60 * 3,
+    timeout=60 * 4,
 )
 def clip(
     image_pil: Image.Image,
@@ -325,10 +326,10 @@ def clip(
 
 
 @app.function(
-    gpu="A10G",
+    gpu="A100",
     image=image,
     volumes={volume_path: volume},
-    timeout=60 * 3,
+    timeout=60 * 4,
 )
 def change_image_objects_hsv(
     image_pil: Image.Image,
@@ -423,10 +424,10 @@ def change_image_objects_hsv(
 
 
 @app.function(
-    gpu="A10G",
+    gpu="A100",
     image=image,
     volumes={volume_path: volume},
-    timeout=60 * 3,
+    timeout=60 * 4,
 )
 def change_image_objects_lab(
     image_pil: Image.Image,
@@ -495,10 +496,10 @@ def change_image_objects_lab(
 
 
 @app.function(
-    gpu="A10G",
+    gpu="A100",
     image=image,
     volumes={volume_path: volume},
-    timeout=60 * 3,
+    timeout=60 * 4,
 )
 def apply_mosaic_with_bool_mask(
     image: np.ndarray,
@@ -523,10 +524,10 @@ def apply_mosaic_with_bool_mask(
 
 
 @app.function(
-    gpu="A10G",
+    gpu="A100",
     image=image,
     volumes={volume_path: volume},
-    timeout=60 * 3,
+    timeout=60 * 4,
 )
 def preserve_privacy(
     image_pil: Image.Image,
@@ -579,10 +580,10 @@ def preserve_privacy(
 
 
 @app.function(
-    gpu="A10G",
+    gpu="A100",
     image=image,
     volumes={volume_path: volume},
-    timeout=60 * 2,
+    timeout=60 * 4,
 )
 def remove_background(image_pil: Image.Image) -> Image.Image:
     import torch  # type: ignore
