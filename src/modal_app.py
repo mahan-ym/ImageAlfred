@@ -170,7 +170,7 @@ def change_image_objects_hsv(
 
         scale_s = np.clip(scale_s, 0.8, 1.2)  
         scale_v = np.clip(scale_v, 0.8, 1.2)
-        
+
         # Apply changes only in mask
         h[mask] = target_hue
         s = s.astype(np.float32)
@@ -369,8 +369,8 @@ def preserve_privacy(
     timeout=60 * 2,
 )
 def remove_background(image_pil: Image.Image) -> Image.Image:
-    from ben2 import BEN_Base
-    import torch
+    import torch  # type: ignore
+    from ben2 import BEN_Base  # type: ignore
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
