@@ -338,6 +338,21 @@ def preserve_privacy(
 
             mask_bool = mask.astype(bool)
 
+            # Create kernel for morphological operations
+            kernel_size = 100
+            kernel = np.ones((kernel_size, kernel_size), np.uint8)
+
+            # Convert bool mask to uint8 for OpenCV operations
+            mask_uint8 = mask_bool.astype(np.uint8) * 255
+
+            # Apply dilation to slightly expand the mask area
+            mask_uint8 = cv2.dilate(mask_uint8, kernel, iterations=2)
+            # Optional: Apply erosion again to refine the mask
+            mask_uint8 = cv2.erode(mask_uint8, kernel, iterations=2)
+
+            # Convert back to boolean mask
+            mask_bool = mask_uint8 > 127
+
             img_array = apply_mosaic_with_bool_mask.remote(
                 img_array, mask_bool, privacy_strength
             )
@@ -361,7 +376,7 @@ def remove_background(image_pil: Image.Image) -> Image.Image:
     print(f"Using device: {device}")
     print("type of image_pil:", type(image_pil))
     model = BEN_Base.from_pretrained("PramaLLC/BEN2")
-    model.to(device).eval()
+    model.to(device).eval()  # todo check if this should be outside the function
 
     output_image = model.inference(
         image_pil,
