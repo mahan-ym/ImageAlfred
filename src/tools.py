@@ -51,21 +51,18 @@ def privacy_preserve_image(
 
     Args:
         input_img: Input image or can be URL string of the image or base64 string. Cannot be None.
-        input_prompt (str): Object to obscure in the image has to be a dot-separated string. It can be a single word or multiple words, e.g., "left person face", "license plate" but it must be as short as possible and avoid using symbols or punctuation. Also you have to use single form of the word, e.g., "person" instead of "people", "face" instead of "faces". e.g. input_prompt = "face. right car. blue shirt."
+        input_prompt (str): Object to obscure in the image. It can be a single word or multiple words, e.g., "left person face", "license plate".
         privacy_strength (int): Strength of the privacy preservation effect. Higher values result in stronger blurring. Default is 15.
     Returns:
         bytes: Binary image data of the modified image.
 
     example:
-        input_prompt = ["face", "license plate"]
+        input_prompt = "faces, license plates, logos"
     """  # noqa: E501
     if not input_img:
         raise gr.Error("Input image cannot be None or empty.")
-    valid_pattern = re.compile(r"^[a-zA-Z\s.]+$")
     if not input_prompt or input_prompt.strip() == "":
         raise gr.Error("Input prompt cannot be None or empty.")
-    if not valid_pattern.match(input_prompt):
-        raise gr.Error("Input prompt must contain only letters, spaces, and dots.")
 
     func = modal.Function.from_name(modal_app_name, "preserve_privacy")
     output_pil = func.remote(
@@ -99,7 +96,7 @@ def change_color_objects_hsv(
 
     Args:
         input_img: Input image or can be URL string of the image or base64 string. Cannot be None.
-        user_input : A list of target specifications for color transformation. Each inner list must contain exactly four elements in the following order: 1. target_object (str) - A short, human-readable description of the object to be modified. Multi-word(not recommended) descriptions are allowed for disambiguation (e.g., "right person shirt"), but they must be at most three words and concise and free of punctuation, symbols, or special characters.2. Red (int) - Desired red value in RGB color space from 0 to 255. 3. Green (int) - Desired green value in RGB color space from 0 to 255. 4. Blue (int) - Desired blue value in RGB color space from 0 to 255. Example: user_input = [["hair", 30, 55, 255], ["shirt", 70, 0 , 157]].
+        user_input : A list of target specifications for color transformation. Each inner list must contain exactly four elements in the following order: 1. target_object (str) - A short, human-readable description of the object to be modified. Multi-word, descriptions are allowed for disambiguation (e.g., "right person shirt"), but they must be concise and free of punctuation, symbols, or special characters.2. Red (int) - Desired red value in RGB color space from 0 to 255. 3. Green (int) - Desired green value in RGB color space from 0 to 255. 4. Blue (int) - Desired blue value in RGB color space from 0 to 255. Example: user_input = [["hair", 30, 55, 255], ["shirt", 70, 0 , 157]].
 
     Returns:
         Base64-encoded string.
@@ -198,7 +195,7 @@ def change_color_objects_lab(
         - Purple: (L=?, A≈180, B≈100)
 
     Args:
-        user_input: A list of color transformation instructions, each as a three-element list:[object_name (str), new_a (int, 0-255), new_b (int, 0-255)].- object_name: A short, unique identifier for the object to be recolored. Multi-word names are allowed  for specificity (e.g., "right person shirt") but must be 3 words or fewer and free of punctuation or special symbols.- new_a: The desired 'a' channel value in LAB space (green-red axis, 0-255, with 128 as neutral).- new_b: The desired 'b' channel value in LAB space (blue-yellow axis, 0-255, with 128 as neutral).Each object must appear only once in the list. Example:[["hair", 80, 128], ["right person shirt", 180, 160]]
+        user_input: A list of color transformation instructions, each as a three-element list:[object_name (str), new_a (int, 0-255), new_b (int, 0-255)].- object_name: A short, unique identifier for the object to be recolored. Multi-word names are allowed for specificity (e.g., "right person shirt") but must be free of punctuation or special symbols.- new_a: The desired 'a' channel value in LAB space (green-red axis, 0-255, with 128 as neutral).- new_b: The desired 'b' channel value in LAB space (blue-yellow axis, 0-255, with 128 as neutral).Each object must appear only once in the list. Example:[["hair", 80, 128], ["right person shirt", 180, 160]]
         input_img : Input image can be URL string of the image. Cannot be None.
 
     Returns:
@@ -256,13 +253,5 @@ def change_color_objects_lab(
         raise TypeError(
             f"Expected Image.Image from modal remote function, got {type(output_pil)}"
         )
-    # img_link = upload_image_to_tmpfiles(output_pil)
 
     return output_pil
-
-
-if __name__ == "__main__":
-    image_pil = Image.open("./src/assets/test_image.jpg")
-    change_color_objects_hsv(
-        user_input=[["hair", 30, 1.2], ["shirt", 60, 1.0]], input_img=image_pil
-    )
