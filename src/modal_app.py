@@ -530,7 +530,7 @@ def apply_mosaic_with_bool_mask(
 )
 def preserve_privacy(
     image_pil: Image.Image,
-    prompts: str,
+    prompts: list[str],
     privacy_strength: int = 15,
     threshold: float = 0.2,
 ) -> Image.Image:

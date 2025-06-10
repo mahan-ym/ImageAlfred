@@ -52,7 +52,7 @@ def privacy_preserve_image(
 
     Args:
         input_img: Input image or can be URL string of the image or base64 string. Cannot be None.
-        input_prompt (str): Object to obscure in the image. It can be a single word or multiple words, e.g., "left person face", "license plate".
+        input_prompt (str): Object to obscure in the image has to be a dot-separated string. It can be a single word or multiple words, e.g., "left person face", "license plate" but it must be as short as possible and avoid using symbols or punctuation. e.g. input_prompt = "face. right car. blue shirt."
         privacy_strength (int): Strength of the privacy preservation effect. Higher values result in stronger blurring. Default is 15.
         threshold (float): Model threshold for detecting objects. It should be between 0.01 and 0.99. Default is 0.2. for detecting smaller objects, small regions or faces a lower threshold is recommended.
     Returns:
@@ -67,11 +67,13 @@ def privacy_preserve_image(
         raise gr.Error("Input prompt cannot be None or empty.")
     if threshold < 0.01 or threshold > 0.99:
         raise gr.Error("Threshold must be between 0.01 and 0.99.")
+    if isinstance(input_prompt, str):
+        prompts = [prompt.strip() for prompt in input_prompt.split(".")]
 
     func = modal.Function.from_name(modal_app_name, "preserve_privacy")
     output_pil = func.remote(
         image_pil=input_img,
-        prompts=input_prompt,
+        prompts=prompts,
         privacy_strength=privacy_strength,
         threshold=threshold,
     )
