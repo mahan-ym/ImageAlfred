@@ -16,11 +16,18 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 
 <a href=https://huggingface.co> <img src="src/assets/icons/hf-logo.svg" alt="huggingface" height=40> </a>
 <a href="https://www.python.org"><img src="src/assets/icons/python-logo-only.svg" alt="python" height=40></a>
+
+<a href="https://huggingface.co/spaces/Agents-MCP-Hackathon/ImageAlfred">🚀 Try it in Hugging Face Space</a>
 </div>
 
 ## Demo
 
-[![ImageAlfred Demo](https://img.youtube.com/vi/tEov-Bcuulk/0.jpg)](https://youtu.be/tEov-Bcuulk)
+<div align="center">
+    <a href="https://youtu.be/tEov-Bcuulk">
+        <img src="https://img.youtube.com/vi/tEov-Bcuulk/0.jpg" alt="ImageAlfred Demo">
+    </a>
+</div>
+
 
 ## Maintainers
 
@@ -34,7 +41,7 @@ ImageAlfred is an image Model Context Protocol (MCP) tool designed to streamline
 - [Modal.com](https://modal.com/): AI infrastructure making all the magic 🔮 possible.
 - [SAM](https://segment-anything.com/): Segment Anything model by meta for image segmentation and mask generation.
 - [CLIPSeg](https://github.com/timojl/clipseg): Image Segmentation using CLIP. We used it as a more precise object detection model.
-- [OWLv2](https://huggingface.co/google/owlv2-large-patch14-ensemble): Zero-Shot object detection (Better performance in license plate detection and privacy preserving use-cases)
+- [OWLv2](https://huggingface.co/google/owlv2-large-patch14-ensemble): Zero-Shot object detection (Better performance in license plate detection and privacy preserving use-cases).
 - [HuggingFace](https://huggingface.co/): Downloading SAM and using Space for hosting.
 
 ## Getting Started
@@ -54,11 +61,48 @@ make install
 
 ### Running the App
 
-This will launch the Gradio interface for ImageAlfred.
+This will deploy the Modal container and launch the Gradio interface for ImageAlfred.
 
 ```bash
 make run
 ```
+
+### Try it in Claude Desktop
+Make sure `Node.js` is installed.
+
+- for testing from [Hugging Face space](https://huggingface.co/spaces/Agents-MCP-Hackathon/ImageAlfred) (first check it's running status).
+```json
+{
+    "mcpServers": {
+        "Image Alfred": {
+            "command": "npx",
+            "args": [
+                "mcp-remote",
+                "https://agents-mcp-hackathon-imagealfred.hf.space/gradio_api/mcp/sse",
+                "--transport",
+                "sse-only"
+            ]
+        }
+    }
+}
+```
+
+- for lacal testing 
+```json
+{
+    "mcpServers": {
+        "Local Image Alfred": {
+            "command": "npx",
+            "args": [
+                "mcp-remote",
+                "http://127.0.0.1:7860/gradio_api/mcp/sse",
+                "--transport",
+                "sse-only"
+            ]
+        }
+    }
+}
+```  
 
 ## License
 
